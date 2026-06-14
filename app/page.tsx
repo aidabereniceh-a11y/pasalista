@@ -9,8 +9,8 @@ export default function Home() {
           PasaLista
         </div>
         <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-          <a href="https://asistencia.promociondocente.mx/login" style={{ color: "#64748b", textDecoration: "none", fontSize: "14px", fontWeight: "500" }}>Iniciar sesion</a>
-          <a href="https://asistencia.promociondocente.mx/registro" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "10px 20px", borderRadius: "10px", textDecoration: "none", fontSize: "14px", fontWeight: "700" }}>Empezar gratis</a>
+          <a href="/login" style={{ color: "#64748b", textDecoration: "none", fontSize: "14px", fontWeight: "500" }}>Iniciar sesion</a>
+          <a href="/registro" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "10px 20px", borderRadius: "10px", textDecoration: "none", fontSize: "14px", fontWeight: "700" }}>Empezar gratis</a>
         </div>
       </nav>
 
@@ -20,7 +20,7 @@ export default function Home() {
           <h1 style={{ fontSize: "48px", fontWeight: "800", margin: "0 0 16px 0", lineHeight: 1.2 }}>Pasa lista en segundos con un QR</h1>
           <p style={{ fontSize: "20px", opacity: 0.9, marginBottom: "32px", lineHeight: 1.6 }}>Olvida las listas en papel. Escanea el QR de cada alumno con tu celular y listo, asistencia registrada al instante.</p>
           <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="https://asistencia.promociondocente.mx/registro" style={{ background: "white", color: "#667eea", padding: "16px 32px", borderRadius: "12px", textDecoration: "none", fontSize: "18px", fontWeight: "700", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>Empezar gratis</a>
+            <a href="/registro" style={{ background: "white", color: "#667eea", padding: "16px 32px", borderRadius: "12px", textDecoration: "none", fontSize: "18px", fontWeight: "700", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>Empezar gratis</a>
             <a href="#como-funciona" style={{ background: "rgba(255,255,255,0.2)", color: "white", padding: "16px 32px", borderRadius: "12px", textDecoration: "none", fontSize: "18px", fontWeight: "700", border: "2px solid rgba(255,255,255,0.4)", display: "inline-block" }}>Ver como funciona</a>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function Home() {
                 <li key={f} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", borderBottom: "1px solid #f1f5f9" }}>✅ {f}</li>
               ))}
             </ul>
-            <a href="https://asistencia.promociondocente.mx/registro" style={{ display: "block", background: "#f1f5f9", color: "#475569", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar gratis</a>
+            <a href="/registro" style={{ display: "block", background: "#f1f5f9", color: "#475569", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar gratis</a>
           </div>
           <div style={{ border: "2px solid #667eea", borderRadius: "20px", padding: "32px", textAlign: "left", background: "linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05))", position: "relative" }}>
             <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700" }}>MAS POPULAR</div>
@@ -101,7 +101,7 @@ export default function Home() {
                 <li key={f} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", borderBottom: "1px solid #f1f5f9" }}>✅ {f}</li>
               ))}
             </ul>
-            <a href="https://asistencia.promociondocente.mx/registro" style={{ display: "block", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar ahora</a>
+            <a href="/registro" style={{ display: "block", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar ahora</a>
           </div>
         </div>
       </section>
@@ -109,7 +109,7 @@ export default function Home() {
       <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 32px", textAlign: "center", color: "white" }}>
         <h2 style={{ fontSize: "36px", fontWeight: "800", margin: "0 0 16px 0" }}>Lista para modernizar tu lista de asistencia?</h2>
         <p style={{ fontSize: "18px", opacity: 0.9, marginBottom: "32px" }}>Unete a los maestros que ya usan PasaLista</p>
-        <a href="https://asistencia.promociondocente.mx/registro" style={{ background: "white", color: "#667eea", padding: "16px 40px", borderRadius: "12px", textDecoration: "none", fontSize: "20px", fontWeight: "800", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>Empezar gratis ahora</a>
+        <a href="/registro" style={{ background: "white", color: "#667eea", padding: "16px 40px", borderRadius: "12px", textDecoration: "none", fontSize: "20px", fontWeight: "800", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>Empezar gratis ahora</a>
       </section>
 
       <footer style={{ background: "#0a0f1e", color: "#64748b", padding: "32px", textAlign: "center", fontSize: "14px" }}>
@@ -120,3 +120,4 @@ export default function Home() {
     </main>
   );
 }
+
