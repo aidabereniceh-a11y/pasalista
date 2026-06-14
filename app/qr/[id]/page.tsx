@@ -43,10 +43,10 @@ export default function QRPage() {
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
       const margenX = 15;
-      const margenY = 20;
+      const margenY = 22;
       const qrTamano = 50;
       const espacioX = 15;
-      const espacioY = 18;
+      const espacioY = 26;
       const columnas = 3;
 
       const anchoUtil = 210 - margenX * 2;
@@ -70,15 +70,17 @@ export default function QRPage() {
         const x = margenX + col * (celdaAncho + espacioX);
         const y = margenY + fila * (qrTamano + espacioY + 10);
 
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(alumno.nombre, x + celdaAncho / 2, y, { align: "center", maxWidth: celdaAncho });
+        pdf.addImage(qrBase64, "PNG", x + (celdaAncho - qrTamano) / 2, y, qrTamano, qrTamano);
 
-        pdf.addImage(qrBase64, "PNG", x + (celdaAncho - qrTamano) / 2, y + 3, qrTamano, qrTamano);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "bold");
+        const lineasNombre = pdf.splitTextToSize(alumno.nombre, celdaAncho);
+        pdf.text(lineasNombre, x + celdaAncho / 2, y + qrTamano + 6, { align: "center" });
 
         pdf.setFontSize(8);
         pdf.setFont("helvetica", "normal");
-        pdf.text("Grupo " + (grupo?.nombre || ""), x + celdaAncho / 2, y + qrTamano + 9, { align: "center" });
+        const yGrupo = y + qrTamano + 6 + lineasNombre.length * 4 + 2;
+        pdf.text("Grupo " + (grupo?.nombre || ""), x + celdaAncho / 2, yGrupo, { align: "center" });
 
         col++;
         if (col >= columnas) {
