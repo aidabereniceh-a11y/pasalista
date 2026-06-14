@@ -24,7 +24,7 @@ export default function QRPage() {
     setAlumnos(alumnosData || []);
   };
 
-  const urlBase = "https://asistencia.promociondocente.mx/checkin/";
+  const urlBase = "https://pasalista.mx/checkin/";
 
   const obtenerQRBase64 = async (url: string): Promise<string> => {
     const respuesta = await fetch(url);
