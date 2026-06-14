@@ -6,9 +6,9 @@ export async function POST(request: Request) {
   const preference = {
     items: [
       {
-        title: "Asistencia QR Escolar - Plan Premium",
+        title: "Asistencia QR Escolar - Plan Premium (1 mes)",
         quantity: 1,
-        unit_price: 499,
+        unit_price: 35,
         currency_id: "MXN",
       },
     ],
@@ -16,9 +16,9 @@ export async function POST(request: Request) {
       email: maestroEmail,
     },
     back_urls: {
-      success: "https://asistencia.promociondocente.mx/pago/exitoso?maestro=" + maestroId,
-      failure: "https://asistencia.promociondocente.mx/pago/fallido",
-      pending: "https://asistencia.promociondocente.mx/pago/pendiente",
+      success: "https://pasalista.mx/pago/exitoso?maestro=" + maestroId,
+      failure: "https://pasalista.mx/pago/fallido",
+      pending: "https://pasalista.mx/pago/pendiente",
     },
     auto_return: "approved",
     external_reference: String(maestroId),

@@ -17,9 +17,22 @@ export default function Dashboard() {
     const data = localStorage.getItem("maestro");
     if (!data) { window.location.href = "/login"; return; }
     const m = JSON.parse(data);
+    verificarVigenciaPremium(m);
+  }, []);
+
+  const verificarVigenciaPremium = async (m: any) => {
+    if (m.plan === "premium" && m.premium_hasta) {
+      const vencio = new Date(m.premium_hasta) < new Date();
+      if (vencio) {
+        await supabase.from("maestros").update({ plan: "gratis" }).eq("id", m.id);
+        m.plan = "gratis";
+        delete m.premium_hasta;
+        localStorage.setItem("maestro", JSON.stringify(m));
+      }
+    }
     setMaestro(m);
     cargarGrupos(m.id);
-  }, []);
+  };
 
   const cargarGrupos = async (maestroId: number) => {
     const { data } = await supabase.from("grupos").select("*").eq("maestro_id", maestroId);
@@ -62,20 +75,25 @@ export default function Dashboard() {
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", fontFamily: "Arial, sans-serif", padding: "24px", color: "white" }}>
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h1 style={{ fontSize: "24px", fontWeight: "700", margin: 0 }}>Asistencia QR</h1>
             <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>Bienvenido, {maestro.nombre}</p>
           </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
               {maestro.plan === "premium" ? "Premium" : "Gratis"}
+            </span>
+            {maestro.plan === "premium" && maestro.premium_hasta && (
+              <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
+              </span>
+            )}
             {maestro.plan !== "premium" && (
               <button onClick={irAPagar} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                Actualizar a Premium $499/ano
+                Actualizar a Premium $35/mes
               </button>
             )}
-            </span>
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesion
             </button>
