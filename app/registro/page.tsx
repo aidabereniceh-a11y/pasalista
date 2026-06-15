@@ -105,11 +105,14 @@ export default function Registro() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{
-            width: "100%", padding: "14px", marginBottom: "20px",
+            width: "100%", padding: "14px", marginBottom: "6px",
             border: "2px solid #e2e8f0", borderRadius: "12px",
             fontSize: "15px", outline: "none", boxSizing: "border-box",
           }}
         />
+        <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "12px", textAlign: "left" }}>
+          ⚠️ Guarda bien tu contrasena: por el momento no es posible recuperarla si la olvidas.
+        </p>
 
         <button
           onClick={registrar}
@@ -125,6 +128,15 @@ export default function Registro() {
         >
           {cargando ? "Registrando..." : "Crear cuenta gratis"}
         </button>
+
+        <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px", marginBottom: "16px", textAlign: "left" }}>
+          <p style={{ margin: "0 0 6px 0", color: "#475569", fontSize: "12px", lineHeight: 1.5 }}>
+            📋 El plan gratis incluye <strong>1 grupo</strong> con alumnos ilimitados. Si necesitas crear 2 o mas grupos, puedes actualizar al plan Premium ($35 MXN/mes).
+          </p>
+          <p style={{ margin: 0, color: "#475569", fontSize: "12px", lineHeight: 1.5 }}>
+            💳 El plan Premium se cobra mes a mes. Tu acceso Premium dura 30 dias desde el pago; si no renuevas, tu cuenta regresa automaticamente al plan gratis.
+          </p>
+        </div>
 
         <p style={{ color: "#64748b", fontSize: "14px" }}>
           Ya tienes cuenta?{" "}

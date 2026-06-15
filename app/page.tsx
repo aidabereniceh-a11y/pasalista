@@ -94,8 +94,8 @@ export default function Home() {
           <div style={{ border: "2px solid #667eea", borderRadius: "20px", padding: "32px", textAlign: "left", background: "linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05))", position: "relative" }}>
             <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700" }}>MAS POPULAR</div>
             <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>Premium</h3>
-            <div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea", margin: "0 0 4px 0" }}>$499</div>
-            <p style={{ color: "#64748b", marginBottom: "24px" }}>al ano (~$42/mes)</p>
+            <div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea", margin: "0 0 4px 0" }}>$35</div>
+            <p style={{ color: "#64748b", marginBottom: "24px" }}>al mes</p>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px 0" }}>
               {["Grupos ilimitados", "Alumnos ilimitados", "Codigos QR", "Asistencia en tiempo real", "Exportar a Excel", "Soporte prioritario"].map((f) => (
                 <li key={f} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", borderBottom: "1px solid #f1f5f9" }}>✅ {f}</li>
@@ -120,4 +120,3 @@ export default function Home() {
     </main>
   );
 }
-
