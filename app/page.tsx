@@ -106,4 +106,32 @@ export default function Home() {
             </ul>
             <a href="/registro" style={{ display: "block", background: "#f1f5f9", color: "#475569", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar gratis</a>
           </div>
-          <div style={{ border:
+          <div style={{ border: "2px solid #667eea", borderRadius: "20px", padding: "32px", textAlign: "left", background: "linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05))", position: "relative" }}>
+            <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700" }}>MAS POPULAR</div>
+            <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>Premium</h3>
+            <div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea", margin: "0 0 4px 0" }}>$35</div>
+            <p style={{ color: "#64748b", marginBottom: "24px" }}>al mes</p>
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px 0" }}>
+              {["Grupos ilimitados", "Alumnos ilimitados", "Codigos QR", "Asistencia en tiempo real", "Exportar a Excel", "Soporte prioritario"].map((f) => (
+                <li key={f} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", borderBottom: "1px solid #f1f5f9" }}>✅ {f}</li>
+              ))}
+            </ul>
+            <a href="/registro" style={{ display: "block", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar ahora</a>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 32px", textAlign: "center", color: "white" }}>
+        <h2 style={{ fontSize: "36px", fontWeight: "800", margin: "0 0 16px 0" }}>Lista para modernizar tu lista de asistencia?</h2>
+        <p style={{ fontSize: "18px", opacity: 0.9, marginBottom: "32px" }}>Unete a los maestros que ya usan PasaLista</p>
+        <a href="/registro" style={{ background: "white", color: "#667eea", padding: "16px 40px", borderRadius: "12px", textDecoration: "none", fontSize: "20px", fontWeight: "800", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>Empezar gratis ahora</a>
+      </section>
+
+      <footer style={{ background: "#0a0f1e", color: "#64748b", padding: "32px", textAlign: "center", fontSize: "14px" }}>
+        <div style={{ marginBottom: "8px", fontSize: "18px", fontWeight: "700", color: "white" }}>PasaLista</div>
+        <p style={{ margin: 0 }}>2026 PasaLista · Todos los derechos reservados</p>
+      </footer>
+
+    </main>
+  );
+}
