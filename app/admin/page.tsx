@@ -300,6 +300,28 @@ function getInitials(name: string) {
   return parts.length >= 2 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2);
 }
 
+// Acepta filas con formato "D/MM/YYYY HH:MM:SS" y descarta cualquier
+// fila sin fecha válida (por ejemplo, las filas de depuración "LOG").
+function esDeHoy(fechaHoraStr: string) {
+  if (!fechaHoraStr) return false;
+
+  const fechaPart = fechaHoraStr.split(" ")[0];
+  const partes = fechaPart.split("/");
+  if (partes.length !== 3) return false;
+
+  const dia = Number(partes[0]);
+  const mes = Number(partes[1]);
+  const anio = Number(partes[2]);
+  if (!dia || !mes || !anio) return false;
+
+  const hoy = new Date();
+  return (
+    dia === hoy.getDate() &&
+    mes === hoy.getMonth() + 1 &&
+    anio === hoy.getFullYear()
+  );
+}
+
 export default function Admin() {
   const [datos, setDatos] = useState<any[]>([]);
   const [hora, setHora] = useState(new Date());
@@ -310,7 +332,8 @@ export default function Admin() {
         .then((r) => r.json())
         .then((json) => {
           json.shift();
-          setDatos(json);
+          const datosDeHoy = json.filter((fila: any[]) => esDeHoy(fila[0]));
+          setDatos(datosDeHoy);
         });
     };
     cargarDatos();
