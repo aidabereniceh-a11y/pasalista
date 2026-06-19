@@ -40,21 +40,25 @@ export default function QRPage() {
   const descargarPDF = async () => {
     setGenerandoPDF(true);
     try {
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
 
       const margenX = 15;
       const margenY = 22;
-      const qrTamano = 50;
+      const margenInferior = 15;
+      const qrTamano = 45;
       const espacioX = 15;
-      const espacioY = 26;
+      const espacioY = 18;
       const columnas = 3;
 
-      const anchoUtil = 210 - margenX * 2;
+      const altoPagina = 279.4;
+      const anchoUtil = 215.9 - margenX * 2;
       const celdaAncho = (anchoUtil - espacioX * (columnas - 1)) / columnas;
+
+      const alturaFila = qrTamano + espacioY + 10;
+      const filasPorPagina = Math.floor((altoPagina - margenY - margenInferior) / alturaFila);
 
       let col = 0;
       let fila = 0;
-      const filasPorPagina = 4;
 
       pdf.setFontSize(16);
       pdf.text("Codigos QR - Grupo " + (grupo?.nombre || ""), 105, 12, { align: "center" });
@@ -68,7 +72,7 @@ export default function QRPage() {
         const qrBase64 = await obtenerQRBase64(qrUrl);
 
         const x = margenX + col * (celdaAncho + espacioX);
-        const y = margenY + fila * (qrTamano + espacioY + 10);
+        const y = margenY + fila * alturaFila;
 
         pdf.addImage(qrBase64, "PNG", x + (celdaAncho - qrTamano) / 2, y, qrTamano, qrTamano);
 
