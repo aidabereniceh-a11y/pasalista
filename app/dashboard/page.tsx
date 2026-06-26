@@ -44,7 +44,13 @@ export default function Dashboard() {
   const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
-    if (maestro.plan === "gratis" && grupos.length >= 1) { setColor("#ef4444"); setMensaje("Plan gratis: solo 1 grupo. Actualiza a premium."); return; }
+
+    // Consultar Supabase directamente para evitar bug con estado local desactualizado
+    if (maestro.plan === "gratis") {
+      const { count } = await supabase.from("grupos").select("*", { count: "exact", head: true }).eq("maestro_id", maestro.id);
+      if ((count || 0) >= 1) { setColor("#ef4444"); setMensaje("Plan gratis: solo 1 grupo. Actualiza a premium."); return; }
+    }
+
     setCargando(true);
     setMensaje("");
     const nombreGrupo = grado + " " + grupo;
