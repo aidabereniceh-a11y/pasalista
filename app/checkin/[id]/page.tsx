@@ -44,6 +44,14 @@ export default function CheckIn() {
       return;
     }
 
+    // Validación: no permitir baño si el alumno no está presente
+    if ((accion === "Salida al banio" || accion === "Regreso del banio") && !presenteHoy) {
+      setColor("#ef4444");
+      setMensaje("Error: El alumno no ha registrado asistencia hoy");
+      setCargando(false);
+      return;
+    }
+
     if (accion === "Salida al banio" && ultimaAccion === "Salida al banio") {
       setColor("#ef4444");
       setMensaje("Error: El alumno ya esta fuera del aula");
