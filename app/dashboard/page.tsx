@@ -37,7 +37,10 @@ export default function Dashboard() {
   };
 
   const cargarGrupos = async (maestroId: number) => {
-    const { data } = await supabase.from("grupos").select("*").eq("maestro_id", maestroId);
+    const { data } = await supabase
+      .from("grupos")
+      .select("*")
+      .eq("maestro_id", maestroId);
     setGrupos(data || []);
   };
 
@@ -45,7 +48,6 @@ export default function Dashboard() {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
 
-    // Consultar Supabase directamente para evitar bug con estado local desactualizado
     if (maestro.plan === "gratis") {
       const { count } = await supabase.from("grupos").select("*", { count: "exact", head: true }).eq("maestro_id", maestro.id);
       if ((count || 0) >= 1) { setColor("#ef4444"); setMensaje("Plan gratis: solo 1 grupo. Actualiza a premium."); return; }
@@ -83,6 +85,30 @@ export default function Dashboard() {
     setGrupoAEliminar(null);
     setEliminando(false);
     cargarGrupos(maestro.id);
+  };
+
+  const handleGafetes = async (g: any) => {
+    if (g.gafetes_pagado) {
+      const { data: alumnosGrupo } = await supabase
+        .from("alumnos")
+        .select("id, nombre")
+        .eq("grupo_id", g.id);
+      const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
+      await generarGafetesPDF(alumnosGrupo || [], { nombre: g.nombre, grado: g.grado });
+      return;
+    }
+
+    const res = await fetch("/api/gafetes/pago", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupoId: g.id,
+        grupoNombre: g.nombre,
+        maestroId: maestro.id,
+      }),
+    });
+    const data = await res.json();
+    window.location.href = data.url;
   };
 
   const irAPagar = async () => {
@@ -185,6 +211,16 @@ export default function Dashboard() {
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   <a href={"/asistencia/" + g.id} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
                   <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
+                  <button
+                    onClick={() => handleGafetes(g)}
+                    style={{
+                      background: g.gafetes_pagado ? "rgba(26,107,60,0.3)" : "rgba(201,149,42,0.2)",
+                      color: g.gafetes_pagado ? "#4ade80" : "#fbbf24",
+                      border: g.gafetes_pagado ? "1px solid rgba(26,107,60,0.4)" : "1px solid rgba(201,149,42,0.3)",
+                      padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer"
+                    }}>
+                    {g.gafetes_pagado ? "🪪 Descargar gafetes" : "🪪 Gafetes $99"}
+                  </button>
                   <button onClick={() => setGrupoAEliminar(g)} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                     Eliminar
                   </button>
