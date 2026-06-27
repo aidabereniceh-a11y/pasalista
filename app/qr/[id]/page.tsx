@@ -3,7 +3,6 @@ export const runtime = "edge";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
-import jsPDF from "jspdf";
 
 export default function QRPage() {
   const params = useParams();
@@ -26,81 +25,78 @@ export default function QRPage() {
 
   const urlBase = "https://pasalista.mx/checkin/";
 
-  const obtenerQRBase64 = async (url: string): Promise<string> => {
-    const respuesta = await fetch(url);
-    const blob = await respuesta.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
   const descargarPDF = async () => {
     setGenerandoPDF(true);
     try {
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Codigos QR - Grupo ${grupo?.nombre || ""}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; background: white; padding: 10mm; }
+            h1 { text-align: center; font-size: 14px; margin-bottom: 8mm; color: #1e293b; }
+            .grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 6mm;
+            }
+            .tarjeta {
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 4mm;
+              text-align: center;
+              page-break-inside: avoid;
+            }
+            .nombre {
+              font-size: 9px;
+              font-weight: bold;
+              color: #1e293b;
+              margin-bottom: 3mm;
+            }
+            .qr { width: 45mm; height: 45mm; }
+            .grupo {
+              font-size: 8px;
+              color: #64748b;
+              margin-top: 2mm;
+            }
+            @media print {
+              @page { size: letter; margin: 10mm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Codigos QR — Grupo ${grupo?.nombre || ""}</h1>
+          <div class="grid">
+            ${alumnos.map(alumno => {
+              const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
+                encodeURIComponent(urlBase + encodeURIComponent(alumno.nombre) + "?grupo=" + id);
+              return `
+                <div class="tarjeta">
+                  <div class="nombre">${alumno.nombre}</div>
+                  <img class="qr" src="${qrUrl}" alt="${alumno.nombre}" />
+                  <div class="grupo">Grupo ${grupo?.nombre || ""}</div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 1000);
+            }
+          </script>
+        </body>
+        </html>
+      `;
 
-      const margenX = 15;
-      const margenY = 22;
-      const margenInferior = 15;
-      const qrTamano = 45;
-      const espacioX = 15;
-      const espacioY = 18;
-      const columnas = 3;
-
-      const altoPagina = 279.4;
-      const anchoUtil = 215.9 - margenX * 2;
-      const celdaAncho = (anchoUtil - espacioX * (columnas - 1)) / columnas;
-
-      const alturaFila = qrTamano + espacioY + 10;
-      const filasPorPagina = Math.floor((altoPagina - margenY - margenInferior) / alturaFila);
-
-      let col = 0;
-      let fila = 0;
-
-      pdf.setFontSize(16);
-      pdf.text("Codigos QR - Grupo " + (grupo?.nombre || ""), 105, 12, { align: "center" });
-
-      for (let i = 0; i < alumnos.length; i++) {
-        const alumno = alumnos[i];
-        const qrUrl =
-          "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
-          encodeURIComponent(urlBase + encodeURIComponent(alumno.nombre) + "?grupo=" + id);
-
-        const qrBase64 = await obtenerQRBase64(qrUrl);
-
-        const x = margenX + col * (celdaAncho + espacioX);
-        const y = margenY + fila * alturaFila;
-
-        pdf.addImage(qrBase64, "PNG", x + (celdaAncho - qrTamano) / 2, y, qrTamano, qrTamano);
-
-        pdf.setFontSize(9);
-        pdf.setFont("helvetica", "bold");
-        const lineasNombre = pdf.splitTextToSize(alumno.nombre, celdaAncho);
-        pdf.text(lineasNombre, x + celdaAncho / 2, y + qrTamano + 6, { align: "center" });
-
-        pdf.setFontSize(8);
-        pdf.setFont("helvetica", "normal");
-        const yGrupo = y + qrTamano + 6 + lineasNombre.length * 4 + 2;
-        pdf.text("Grupo " + (grupo?.nombre || ""), x + celdaAncho / 2, yGrupo, { align: "center" });
-
-        col++;
-        if (col >= columnas) {
-          col = 0;
-          fila++;
-          if (fila >= filasPorPagina && i < alumnos.length - 1) {
-            pdf.addPage();
-            fila = 0;
-            pdf.setFontSize(16);
-            pdf.setFont("helvetica", "normal");
-            pdf.text("Codigos QR - Grupo " + (grupo?.nombre || ""), 105, 12, { align: "center" });
-          }
-        }
+      const ventana = window.open("", "_blank", "width=900,height=700");
+      if (ventana) {
+        ventana.document.write(html);
+        ventana.document.close();
       }
-
-      pdf.save("codigos-qr-" + (grupo?.nombre || "grupo") + ".pdf");
     } catch (err) {
       alert("Error al generar el PDF, intenta de nuevo");
     }
