@@ -15,6 +15,8 @@ interface Props {
   gafetesPagado: boolean
   alumnos: Alumno[]
   maestroId: string
+  maestroNombre: string
+  maestroEmail: string
 }
 
 export default function BotonGafetes({
@@ -24,6 +26,8 @@ export default function BotonGafetes({
   gafetesPagado,
   alumnos,
   maestroId,
+  maestroNombre,
+  maestroEmail,
 }: Props) {
   const [cargando, setCargando] = useState(false)
 
@@ -31,7 +35,11 @@ export default function BotonGafetes({
     setCargando(true)
 
     if (gafetesPagado) {
-      await generarGafetesPDF(alumnos, { nombre: grupoNombre, grado: grupoGrado })
+      await generarGafetesPDF(
+        alumnos,
+        { nombre: grupoNombre, grado: grupoGrado },
+        { nombre: maestroNombre, email: maestroEmail }
+      )
       setCargando(false)
       return
     }
@@ -61,7 +69,7 @@ export default function BotonGafetes({
       `}
     >
       {cargando ? (
-        <span>⏳ {gafetesPagado ? 'Generando PDF...' : 'Redirigiendo...'}</span>
+        <span>⏳ {gafetesPagado ? 'Generando...' : 'Redirigiendo...'}</span>
       ) : gafetesPagado ? (
         <span>🪪 Descargar gafetes PDF</span>
       ) : (
