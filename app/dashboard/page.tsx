@@ -88,28 +88,33 @@ export default function Dashboard() {
   };
 
   const handleGafetes = async (g: any) => {
-    if (g.gafetes_pagado) {
-      const { data: alumnosGrupo } = await supabase
-        .from("alumnos")
-        .select("id, nombre")
-        .eq("grupo_id", g.id);
-      const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
-      await generarGafetesPDF(alumnosGrupo || [], { nombre: g.nombre, grado: g.grado });
-      return;
-    }
+  if (g.gafetes_pagado) {
+    const { data: alumnosGrupo } = await supabase
+      .from("alumnos")
+      .select("id, nombre")
+      .eq("grupo_id", g.id)
 
-    const res = await fetch("/api/gafetes/pago", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grupoId: g.id,
-        grupoNombre: g.nombre,
-        maestroId: maestro.id,
-      }),
-    });
-    const data = await res.json();
-    window.location.href = data.url;
-  };
+    const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF")
+    await generarGafetesPDF(
+      alumnosGrupo || [],
+      { nombre: g.nombre, grado: g.grado },
+      { nombre: maestro.nombre, email: maestro.email }
+    )
+    return
+  }
+
+  const res = await fetch("/api/gafetes/pago", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grupoId: g.id,
+      grupoNombre: g.nombre,
+      maestroId: maestro.id,
+    }),
+  })
+  const data = await res.json()
+  window.location.href = data.url
+}
 
   const irAPagar = async () => {
     const respuesta = await fetch("/api/pago", {
