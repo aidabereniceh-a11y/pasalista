@@ -114,7 +114,7 @@ export default function Home() {
             </div>
             <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
               <img
-                src="/gafetes-qr.png"
+                src="/gafetes-qr.jpg"
                 alt="Gafetes con codigo QR de alumnos sobre un escritorio"
                 style={{ width: "100%", height: "320px", objectFit: "cover", display: "block" }}
               />
