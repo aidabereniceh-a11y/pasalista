@@ -17,31 +17,112 @@ export default function Home() {
   return (
     <main style={{ fontFamily: "Arial, sans-serif", background: "white", minHeight: "100vh" }}>
 
+      <style>{`
+        .grid-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 64px;
+          align-items: center;
+        }
+        .grid-2-reverse {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 64px;
+          align-items: center;
+        }
+        .hero-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 48px;
+          align-items: center;
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 32px;
+          text-align: center;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+        .precio-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+        }
+        .nav-links { display: flex; gap: 16px; align-items: center; }
+        .hero-img { height: 460px; }
+        .paso-img { height: 320px; }
+        .dashboard-img { height: 420px; }
+        .hero-btns { display: flex; gap: 16px; flex-wrap: wrap; }
+
+        @media (max-width: 768px) {
+          .hero-grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
+            padding: 0;
+          }
+          .grid-2 {
+            grid-template-columns: 1fr;
+            gap: 32px;
+          }
+          .grid-2-reverse {
+            grid-template-columns: 1fr;
+            gap: 32px;
+          }
+          .grid-2-reverse .img-primero {
+            order: -1;
+          }
+          .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .features-grid {
+            grid-template-columns: 1fr;
+          }
+          .precio-grid {
+            grid-template-columns: 1fr;
+          }
+          .nav-links a:first-child { display: none; }
+          .hero-img { height: 280px; }
+          .paso-img { height: 220px; }
+          .dashboard-img { height: 240px; }
+          .hero-btns { flex-direction: column; }
+          .hero-btns a { text-align: center; }
+        }
+      `}</style>
+
       {/* NAV */}
-      <nav style={{ background: "white", borderBottom: "1px solid #e2e8f0", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 }}>
+      <nav style={{ background: "white", borderBottom: "1px solid #e2e8f0", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ fontSize: "22px", fontWeight: "800", background: "linear-gradient(135deg, #667eea, #764ba2)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
           PasaLista
         </div>
-        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+        <div className="nav-links">
           <a href="/login" style={{ color: "#64748b", textDecoration: "none", fontSize: "14px", fontWeight: "500" }}>Iniciar sesion</a>
           <a href="/registro" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "10px 20px", borderRadius: "10px", textDecoration: "none", fontSize: "14px", fontWeight: "700" }}>Empezar gratis</a>
         </div>
       </nav>
 
       {/* HERO */}
-      <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 32px", color: "white" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px", alignItems: "center" }}>
+      <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "60px 24px", color: "white" }}>
+        <div className="hero-grid">
           <div>
             <div style={{ display: "inline-block", background: "rgba(255,255,255,0.15)", borderRadius: "20px", padding: "6px 16px", fontSize: "13px", fontWeight: "600", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.3)" }}>
               ✨ 100% gratis para empezar
             </div>
-            <h1 style={{ fontSize: "48px", fontWeight: "800", margin: "0 0 16px 0", lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: "clamp(32px, 6vw, 48px)", fontWeight: "800", margin: "0 0 16px 0", lineHeight: 1.2 }}>
               Pasa lista en segundos con un QR
             </h1>
             <p style={{ fontSize: "18px", opacity: 0.9, marginBottom: "32px", lineHeight: 1.6 }}>
               Olvida las listas en papel. Escanea el gafete QR de cada alumno con tu celular y listo, asistencia registrada al instante.
             </p>
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            <div className="hero-btns">
               <a href="/registro" style={{ background: "white", color: "#667eea", padding: "16px 32px", borderRadius: "12px", textDecoration: "none", fontSize: "18px", fontWeight: "700", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>
                 Empezar gratis
               </a>
@@ -54,15 +135,16 @@ export default function Home() {
             <img
               src="/maestra-celular.png"
               alt="Maestra mostrando gafete QR de alumno en su celular"
-              style={{ width: "100%", height: "460px", objectFit: "cover", display: "block" }}
+              className="hero-img"
+              style={{ width: "100%", objectFit: "cover", display: "block" }}
             />
           </div>
         </div>
       </section>
 
       {/* STATS */}
-      <section style={{ background: "#f8fafc", padding: "48px 32px" }}>
-        <div style={{ maxWidth: "800px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "32px", textAlign: "center" }}>
+      <section style={{ background: "#f8fafc", padding: "48px 24px" }}>
+        <div className="stats-grid">
           <div><div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea" }}>5 seg</div><div style={{ color: "#64748b", fontSize: "16px" }}>para pasar lista</div></div>
           <div><div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea" }}>100%</div><div style={{ color: "#64748b", fontSize: "16px" }}>desde el celular</div></div>
           <div><div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea" }}>0</div><div style={{ color: "#64748b", fontSize: "16px" }}>papel necesario</div></div>
@@ -70,30 +152,27 @@ export default function Home() {
       </section>
 
       {/* COMO FUNCIONA */}
-      <section id="como-funciona" style={{ padding: "80px 32px" }}>
+      <section id="como-funciona" style={{ padding: "80px 24px" }}>
         <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", fontSize: "36px", fontWeight: "800", color: "#1e293b", marginBottom: "16px" }}>Como funciona</h2>
+          <h2 style={{ textAlign: "center", fontSize: "clamp(28px, 5vw, 36px)", fontWeight: "800", color: "#1e293b", marginBottom: "16px" }}>Como funciona</h2>
           <p style={{ textAlign: "center", color: "#64748b", fontSize: "18px", marginBottom: "64px" }}>En 5 pasos sencillos, sin complicaciones</p>
 
           {/* Paso 1 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center", marginBottom: "80px" }}>
+          <div className="grid-2" style={{ marginBottom: "80px" }}>
             <div>
               <div style={{ width: "48px", height: "48px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", marginBottom: "16px" }}>1</div>
               <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#1e293b", marginBottom: "12px" }}>Crea tu cuenta gratis</h3>
               <p style={{ color: "#64748b", fontSize: "16px", lineHeight: 1.7 }}>Registrate en menos de 2 minutos. Sin tarjeta de credito, sin complicaciones. Solo tu nombre y correo.</p>
             </div>
             <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
-              <img
-                src="/empieza-gratis.png"
-                alt="Pagina de registro de PasaLista en laptop"
-                style={{ width: "100%", height: "320px", objectFit: "cover", objectPosition: "top", display: "block" }}
-              />
+              <img src="/empieza-gratis.png" alt="Pagina de registro de PasaLista en laptop"
+                className="paso-img" style={{ width: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
             </div>
           </div>
 
           {/* Paso 2 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center", marginBottom: "80px" }}>
-            <div style={{ background: "#f0f4ff", borderRadius: "16px", padding: "32px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+          <div className="grid-2-reverse" style={{ marginBottom: "80px" }}>
+            <div className="img-primero" style={{ background: "#f0f4ff", borderRadius: "16px", padding: "32px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
               <div style={{ fontSize: "64px", marginBottom: "16px" }}>📋</div>
               <div style={{ color: "#1e293b", fontSize: "18px", fontWeight: "700", marginBottom: "8px" }}>Agrega a tus alumnos</div>
               <div style={{ color: "#64748b", fontSize: "14px" }}>Un nombre por linea · QR automatico para cada uno</div>
@@ -106,29 +185,23 @@ export default function Home() {
           </div>
 
           {/* Paso 3 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center", marginBottom: "80px" }}>
+          <div className="grid-2" style={{ marginBottom: "80px" }}>
             <div>
               <div style={{ width: "48px", height: "48px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", marginBottom: "16px" }}>3</div>
               <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#1e293b", marginBottom: "12px" }}>Imprime los gafetes QR</h3>
               <p style={{ color: "#64748b", fontSize: "16px", lineHeight: 1.7 }}>Descarga e imprime los gafetes con el QR de cada alumno. Cada alumno lleva su gafete colgado o en la mochila. 6 gafetes por hoja carta.</p>
             </div>
             <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
-              <img
-                src="/gafetes-qr.jpg"
-                alt="Gafetes con codigo QR de alumnos sobre un escritorio"
-                style={{ width: "100%", height: "320px", objectFit: "cover", display: "block" }}
-              />
+              <img src="/gafetes-qr.jpg" alt="Gafetes con codigo QR de alumnos sobre un escritorio"
+                className="paso-img" style={{ width: "100%", objectFit: "cover", display: "block" }} />
             </div>
           </div>
 
           {/* Paso 4 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center", marginBottom: "80px" }}>
-            <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
-              <img
-                src="/maestra-escaneando.png"
-                alt="Maestra escaneando QR con su celular"
-                style={{ width: "100%", height: "320px", objectFit: "cover", display: "block" }}
-              />
+          <div className="grid-2-reverse" style={{ marginBottom: "80px" }}>
+            <div className="img-primero" style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
+              <img src="/maestra-escaneando.png" alt="Maestra escaneando QR con su celular"
+                className="paso-img" style={{ width: "100%", objectFit: "cover", display: "block" }} />
             </div>
             <div>
               <div style={{ width: "48px", height: "48px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", marginBottom: "16px" }}>4</div>
@@ -138,40 +211,32 @@ export default function Home() {
           </div>
 
           {/* Paso 5 */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center" }}>
+          <div className="grid-2">
             <div>
               <div style={{ width: "48px", height: "48px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "18px", marginBottom: "16px" }}>5</div>
               <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#1e293b", marginBottom: "12px" }}>Consulta reportes y exporta a Excel</h3>
               <p style={{ color: "#64748b", fontSize: "16px", lineHeight: 1.7 }}>Ve quien asistio, quien falto y quien salio al bano, todo en tiempo real. Exporta el reporte a Excel con un clic para tu supervisora.</p>
             </div>
             <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
-              <img
-                src="/laptop-reporte.png"
-                alt="Reporte de asistencia en Excel en laptop"
-                style={{ width: "100%", height: "320px", objectFit: "cover", display: "block" }}
-              />
+              <img src="/laptop-reporte.png" alt="Reporte de asistencia en Excel en laptop"
+                className="paso-img" style={{ width: "100%", objectFit: "cover", display: "block" }} />
             </div>
           </div>
         </div>
       </section>
 
       {/* BANNER DASHBOARD */}
-      <section style={{ background: "#f0f4ff", padding: "80px 32px" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center" }}>
+      <section style={{ background: "#f0f4ff", padding: "80px 24px" }}>
+        <div className="grid-2" style={{ maxWidth: "1100px", margin: "0 auto" }}>
           <div>
-            <h2 style={{ fontSize: "36px", fontWeight: "800", color: "#1e293b", marginBottom: "16px", lineHeight: 1.3 }}>
+            <h2 style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: "800", color: "#1e293b", marginBottom: "16px", lineHeight: 1.3 }}>
               Todo desde tu celular o computadora
             </h2>
             <p style={{ color: "#64748b", fontSize: "16px", lineHeight: 1.7, marginBottom: "16px" }}>
               Tu panel de control te muestra todos tus grupos, la asistencia del dia y los reportes del ciclo escolar completo. Sin instalaciones, funciona directo desde el navegador.
             </p>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px 0" }}>
-              {[
-                "Ve la asistencia en tiempo real",
-                "Controla salidas al bano",
-                "Genera gafetes QR para tus alumnos",
-                "Exporta reportes a Excel",
-              ].map((item) => (
+              {["Ve la asistencia en tiempo real", "Controla salidas al bano", "Genera gafetes QR para tus alumnos", "Exporta reportes a Excel"].map((item) => (
                 <li key={item} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ color: "#667eea", fontWeight: "700" }}>✓</span> {item}
                 </li>
@@ -182,21 +247,18 @@ export default function Home() {
             </a>
           </div>
           <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 16px 48px rgba(0,0,0,0.15)" }}>
-            <img
-              src="/dashboard.png"
-              alt="Dashboard de PasaLista en laptop"
-              style={{ width: "100%", height: "420px", objectFit: "cover", objectPosition: "top", display: "block" }}
-            />
+            <img src="/dashboard.png" alt="Dashboard de PasaLista en laptop"
+              className="dashboard-img" style={{ width: "100%", objectFit: "cover", objectPosition: "top", display: "block" }} />
           </div>
         </div>
       </section>
 
       {/* FEATURES */}
-      <section style={{ background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", padding: "80px 32px", color: "white" }}>
+      <section style={{ background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", padding: "80px 24px", color: "white" }}>
         <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", fontSize: "36px", fontWeight: "800", marginBottom: "16px" }}>Todo lo que necesitas</h2>
+          <h2 style={{ textAlign: "center", fontSize: "clamp(28px, 5vw, 36px)", fontWeight: "800", marginBottom: "16px" }}>Todo lo que necesitas</h2>
           <p style={{ textAlign: "center", color: "#94a3b8", fontSize: "18px", marginBottom: "48px" }}>Sin complicaciones, sin instalaciones, sin papel</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "24px" }}>
+          <div className="features-grid">
             {[
               { icon: "✅", title: "Asistencia en tiempo real", desc: "Ve quien esta presente, quien salio al bano y quien falta, todo en vivo." },
               { icon: "🚻", title: "Control de bano", desc: "Registra salidas y regresos del bano con un solo escaneo del gafete." },
@@ -216,10 +278,10 @@ export default function Home() {
       </section>
 
       {/* PRECIOS */}
-      <section style={{ padding: "80px 32px", maxWidth: "700px", margin: "0 auto", textAlign: "center" }}>
-        <h2 style={{ fontSize: "36px", fontWeight: "800", color: "#1e293b", marginBottom: "12px" }}>Precios simples</h2>
+      <section style={{ padding: "80px 24px", maxWidth: "700px", margin: "0 auto", textAlign: "center" }}>
+        <h2 style={{ fontSize: "clamp(28px, 5vw, 36px)", fontWeight: "800", color: "#1e293b", marginBottom: "12px" }}>Precios simples</h2>
         <p style={{ color: "#64748b", fontSize: "18px", marginBottom: "48px" }}>Empieza gratis, actualiza cuando lo necesites</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+        <div className="precio-grid">
           <div style={{ border: "2px solid #e2e8f0", borderRadius: "20px", padding: "32px", textAlign: "left" }}>
             <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>Gratis</h3>
             <div style={{ fontSize: "48px", fontWeight: "800", color: "#1e293b", margin: "0 0 4px 0" }}>$0</div>
@@ -232,7 +294,7 @@ export default function Home() {
             <a href="/registro" style={{ display: "block", background: "#f1f5f9", color: "#475569", padding: "14px", borderRadius: "10px", textDecoration: "none", fontWeight: "700", textAlign: "center" }}>Empezar gratis</a>
           </div>
           <div style={{ border: "2px solid #667eea", borderRadius: "20px", padding: "32px", textAlign: "left", background: "linear-gradient(135deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05))", position: "relative" }}>
-            <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700" }}>MAS POPULAR</div>
+            <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "4px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", whiteSpace: "nowrap" }}>MAS POPULAR</div>
             <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", margin: "0 0 8px 0" }}>Premium</h3>
             <div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea", margin: "0 0 4px 0" }}>$35</div>
             <p style={{ color: "#64748b", marginBottom: "24px" }}>al mes</p>
@@ -247,8 +309,8 @@ export default function Home() {
       </section>
 
       {/* CTA FINAL */}
-      <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 32px", textAlign: "center", color: "white" }}>
-        <h2 style={{ fontSize: "36px", fontWeight: "800", margin: "0 0 16px 0" }}>Lista para modernizar tu lista de asistencia?</h2>
+      <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 24px", textAlign: "center", color: "white" }}>
+        <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", fontWeight: "800", margin: "0 0 16px 0" }}>Lista para modernizar tu lista de asistencia?</h2>
         <p style={{ fontSize: "18px", opacity: 0.9, marginBottom: "32px" }}>Unete a los maestros que ya usan PasaLista</p>
         <a href="/registro" style={{ background: "white", color: "#667eea", padding: "16px 40px", borderRadius: "12px", textDecoration: "none", fontSize: "20px", fontWeight: "800", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "inline-block" }}>
           Empezar gratis ahora
