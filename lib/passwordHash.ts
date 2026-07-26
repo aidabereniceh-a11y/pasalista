@@ -62,7 +62,7 @@ export async function verifyPassword(password: string, hashGuardado: string): Pr
   );
 
   const hashBuffer = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: iteraciones, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: iteraciones, hash: "SHA-256" },
     keyMaterial,
     256
   );
