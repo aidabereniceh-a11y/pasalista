@@ -1,6 +1,5 @@
 ﻿"use client";
 import { useState } from "react";
-import { supabase } from "../../lib/supabase";
 
 export default function Registro() {
   const [nombre, setNombre] = useState("");
@@ -20,26 +19,16 @@ export default function Registro() {
     setCargando(true);
     setMensaje("");
 
-    const { data: existente } = await supabase
-      .from("maestros")
-      .select("id")
-      .eq("email", email)
-      .single();
+    const res = await fetch("/api/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, email, password }),
+    });
+    const data = await res.json();
 
-    if (existente) {
+    if (!res.ok) {
       setColor("#ef4444");
-      setMensaje("Este email ya esta registrado");
-      setCargando(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("maestros")
-      .insert({ nombre, email, password, plan: "gratis" });
-
-    if (error) {
-      setColor("#ef4444");
-      setMensaje("Error al registrar, intenta de nuevo");
+      setMensaje(data.error || "Error al registrar, intenta de nuevo");
     } else {
       setColor("#22c55e");
       setMensaje("Registro exitoso! Redirigiendo...");
@@ -70,8 +59,7 @@ export default function Registro() {
         textAlign: "center",
       }}>
         <div style={{ fontSize: "48px", marginBottom: "8px" }}>📚</div>
-        <h1 style={{ margin: "0 0 4px 0", fontSize: "22px", color: "#1e293b", fontWeight: "700" }}>
-          Crear cuenta
+        <h1 style={{ margin: "0 0 4px 0", fontSize: "22px", color: "#1e293b", fontWeight: "700" }}>          Crear cuenta
         </h1>
         <p style={{ margin: "0 0 28px 0", color: "#94a3b8", fontSize: "14px" }}>
           Asistencia QR Escolar
@@ -110,8 +98,7 @@ export default function Registro() {
             fontSize: "15px", outline: "none", boxSizing: "border-box",
           }}
         />
-        <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "12px", textAlign: "left" }}>
-          ⚠️ Guarda bien tu contrasena: por el momento no es posible recuperarla si la olvidas.
+        <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "12px", textAlign: "left" }}>          ⚠️ Guarda bien tu contrasena: por el momento no es posible recuperarla si la olvidas.
         </p>
 
         <button
@@ -140,8 +127,7 @@ export default function Registro() {
 
         <p style={{ color: "#64748b", fontSize: "14px" }}>
           Ya tienes cuenta?{" "}
-          <a href="/login" style={{ color: "#667eea", fontWeight: "600", textDecoration: "none" }}>
-            Inicia sesion
+          <a href="/login" style={{ color: "#667eea", fontWeight: "600", textDecoration: "none" }}>            Inicia sesion
           </a>
         </p>
 

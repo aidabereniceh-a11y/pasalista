@@ -1,6 +1,5 @@
 ﻿"use client";
 import { useState } from "react";
-import { supabase } from "../../lib/supabase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -19,20 +18,20 @@ export default function Login() {
     setCargando(true);
     setMensaje("");
 
-    const { data, error } = await supabase
-      .from("maestros")
-      .select("*")
-      .eq("email", email)
-      .eq("password", password)
-      .single();
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
 
-    if (error || !data) {
+    if (!res.ok) {
       setColor("#ef4444");
-      setMensaje("Email o contrasena incorrectos");
+      setMensaje(data.error || "Email o contrasena incorrectos");
     } else {
-      localStorage.setItem("maestro", JSON.stringify(data));
+      localStorage.setItem("maestro", JSON.stringify(data.maestro));
       setColor("#22c55e");
-      setMensaje("Bienvenido " + data.nombre + "!");
+      setMensaje("Bienvenido " + data.maestro.nombre + "!");
       setTimeout(() => {
         window.location.href = "/dashboard";
       }, 1500);
