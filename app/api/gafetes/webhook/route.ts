@@ -1,5 +1,7 @@
 export const runtime = "edge";
 
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+
 export async function POST(request: Request) {
   const body = await request.json();
 
@@ -13,7 +15,7 @@ export async function POST(request: Request) {
     `https://api.mercadopago.com/v1/payments/${body.data.id}`,
     {
       headers: {
-        Authorization: "Bearer APP_USR-3590582654218222-060517-286eaebdef27d1b7ebfe00b397e051d9-3453986570",
+        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
       },
     }
   );
@@ -23,31 +25,32 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  // Extraer grupoId de la referencia: "gafetes_{grupoId}_{maestroId}"
-  const partes = pago.external_reference?.split("_");
-  if (!partes || partes[0] !== "gafetes") {
+  const referencia = pago.external_reference as string | undefined;
+  if (!referencia) {
     return Response.json({ ok: true });
   }
 
-  const grupoId = partes[1];
+  // Formato "gafetes_{grupoId}_{maestroId}" -> pago de gafetes
+  if (referencia.startsWith("gafetes_")) {
+    const partes = referencia.split("_");
+    const grupoId = partes[1];
 
-  // Marcar el grupo como pagado en Supabase
-  await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/grupos?id=eq.${grupoId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        "Prefer": "return=minimal",
-      },
-      body: JSON.stringify({
-        gafetes_pagado: true,
-        gafetes_pagado_at: new Date().toISOString(),
-      }),
-    }
-  );
+    await supabaseAdmin
+      .from("grupos")
+      .update({ gafetes_pagado: true, gafetes_pagado_at: new Date().toISOString() })
+      .eq("id", grupoId);
+
+    return Response.json({ ok: true });
+  }
+
+  // De lo contrario, es solo el maestroId -> pago de Premium
+  const premiumHasta = new Date();
+  premiumHasta.setDate(premiumHasta.getDate() + 30);
+
+  await supabaseAdmin
+    .from("maestros")
+    .update({ plan: "premium", premium_hasta: premiumHasta.toISOString() })
+    .eq("id", referencia);
 
   return Response.json({ ok: true });
 }
