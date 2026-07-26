@@ -1,7 +1,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../../../lib/passwordHash";
 
 export async function POST(request: Request) {
   const { nombre, email, password } = await request.json();
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Este email ya esta registrado" }, { status: 409 });
   }
 
-  const passwordHasheado = await bcrypt.hash(password, 10);
+  const passwordHasheado = await hashPassword(password);
 
   const { data, error } = await supabaseAdmin
     .from("maestros")
@@ -32,7 +32,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Error al registrar" }, { status: 500 });
   }
 
-  // No regresamos el password (ni hasheado) al cliente
   const { password: _omitido, ...maestroSinPassword } = data;
 
   return Response.json({ maestro: maestroSinPassword });

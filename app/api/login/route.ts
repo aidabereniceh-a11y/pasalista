@@ -1,7 +1,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
-import bcrypt from "bcryptjs";
+import { verifyPassword } from "../../../lib/passwordHash";
 
 export async function POST(request: Request) {
   const { email, password } = await request.json();
@@ -20,13 +20,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Email o contrasena incorrectos" }, { status: 401 });
   }
 
-  const passwordCorrecto = await bcrypt.compare(password, data.password);
+  const passwordCorrecto = await verifyPassword(password, data.password);
 
   if (!passwordCorrecto) {
     return Response.json({ error: "Email o contrasena incorrectos" }, { status: 401 });
   }
 
-  // No regresamos el password (hasheado) al cliente
   const { password: _omitido, ...maestroSinPassword } = data;
 
   return Response.json({ maestro: maestroSinPassword });

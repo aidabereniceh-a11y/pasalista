@@ -1,7 +1,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
-import bcrypt from "bcryptjs";
+import { hashPassword, esHashPbkdf2 } from "../../../../lib/passwordHash";
 
 // ⚠️ ENDPOINT TEMPORAL - Borrar este archivo despues de usarlo una vez.
 export async function POST(request: Request) {
@@ -22,13 +22,12 @@ export async function POST(request: Request) {
   const resultados = [];
 
   for (const m of maestros) {
-    // Si ya empieza con $2 (formato bcrypt), ya esta hasheado - lo saltamos
-    if (m.password.startsWith("$2")) {
+    if (esHashPbkdf2(m.password)) {
       resultados.push({ id: m.id, estado: "ya_hasheado" });
       continue;
     }
 
-    const passwordHasheado = await bcrypt.hash(m.password, 10);
+    const passwordHasheado = await hashPassword(m.password);
     const { error: errorUpdate } = await supabaseAdmin
       .from("maestros")
       .update({ password: passwordHasheado })
