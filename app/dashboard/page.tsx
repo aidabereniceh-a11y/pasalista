@@ -26,7 +26,7 @@ export default function Dashboard() {
     verificarVigenciaPremium(m);
   }, []);
 
-const verificarVigenciaPremium = async (m: any) => {
+  const verificarVigenciaPremium = async (m: any) => {
     try {
       const res = await fetch("/api/verificar-vigencia", {
         method: "POST",
@@ -48,29 +48,33 @@ const verificarVigenciaPremium = async (m: any) => {
   };
 
   const cargarGrupos = async (maestroId: number) => {
-    const { data } = await supabase
-      .from("grupos")
-      .select("*")
-      .eq("maestro_id", maestroId);
-    setGrupos(data || []);
+    const res = await fetch(`/api/grupos?maestroId=${maestroId}`);
+    const data = await res.json();
+    setGrupos(data.grupos || []);
   };
 
   const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
 
-    if (maestro.plan === "gratis") {
-      const { count } = await supabase.from("grupos").select("*", { count: "exact", head: true }).eq("maestro_id", maestro.id);
-      if ((count || 0) >= 1) { setColor("#ef4444"); setMensaje("Plan gratis: solo 1 grupo. Actualiza a premium."); return; }
-    }
-
     setCargando(true);
     setMensaje("");
-    const nombreGrupo = grado + " " + grupo;
-    const { data: grupoData, error } = await supabase.from("grupos").insert({ maestro_id: maestro.id, nombre: nombreGrupo, grado, grupo }).select().single();
-    if (error || !grupoData) { setColor("#ef4444"); setMensaje("Error al crear el grupo"); setCargando(false); return; }
-    const listaAlumnos = alumnos.split("\n").map((a) => a.trim().toUpperCase()).filter((a) => a.length > 0).map((nombre) => ({ grupo_id: grupoData.id, nombre }));
-    await supabase.from("alumnos").insert(listaAlumnos);
+
+    const listaAlumnos = alumnos.split("\n");
+    const res = await fetch("/api/grupos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id, grado, grupo, alumnos: listaAlumnos }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setColor("#ef4444");
+      setMensaje(data.error || "Error al crear el grupo");
+      setCargando(false);
+      return;
+    }
+
     setColor("#22c55e");
     setMensaje("Grupo creado correctamente");
     setAlumnos("");
@@ -82,16 +86,12 @@ const verificarVigenciaPremium = async (m: any) => {
   const eliminarGrupo = async () => {
     if (!grupoAEliminar || eliminando) return;
     setEliminando(true);
-    const grupoId = grupoAEliminar.id;
 
-    const { data: alumnosDelGrupo } = await supabase.from("alumnos").select("id").eq("grupo_id", grupoId);
-    const idsAlumnos = (alumnosDelGrupo || []).map((a) => a.id);
-
-    if (idsAlumnos.length > 0) {
-      await supabase.from("asistencia").delete().in("alumno_id", idsAlumnos);
-    }
-    await supabase.from("alumnos").delete().eq("grupo_id", grupoId);
-    await supabase.from("grupos").delete().eq("id", grupoId);
+    await fetch(`/api/grupos/${grupoAEliminar.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id }),
+    });
 
     setGrupoAEliminar(null);
     setEliminando(false);
@@ -212,7 +212,7 @@ const verificarVigenciaPremium = async (m: any) => {
 
         {maestro.plan !== "premium" && (
           <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "12px", padding: "12px 16px", marginBottom: "20px", color: "#c7d2fe", fontSize: "13px" }}>
-            📋 Tu plan gratis incluye <strong>1 grupo</strong> con alumnos ilimitados ({grupos.length}/1 usado). Para crear 2 o mas grupos, actualiza a Premium ($35/mes).
+            📋 Tu plan gratis incluye <strong>1 grupo</strong> con alumnos ilimitados ({grupos.length}/1 usado). Para crear 2 o mas grupos, actualiza a Premium ($49/mes).
           </div>
         )}
 
