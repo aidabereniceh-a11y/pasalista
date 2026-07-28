@@ -4,10 +4,10 @@ import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { maestroId } = await request.json();
-  const grupoId = params.id;
+  const { id: grupoId } = await params;
 
   if (!maestroId) {
     return Response.json({ error: "Falta maestroId" }, { status: 400 });
