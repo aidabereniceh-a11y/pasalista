@@ -26,15 +26,22 @@ export default function Dashboard() {
     verificarVigenciaPremium(m);
   }, []);
 
-  const verificarVigenciaPremium = async (m: any) => {
-    if (m.plan === "premium" && m.premium_hasta) {
-      const vencio = new Date(m.premium_hasta) < new Date();
-      if (vencio) {
-        await supabase.from("maestros").update({ plan: "gratis" }).eq("id", m.id);
-        m.plan = "gratis";
-        delete m.premium_hasta;
-        localStorage.setItem("maestro", JSON.stringify(m));
+const verificarVigenciaPremium = async (m: any) => {
+    try {
+      const res = await fetch("/api/verificar-vigencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maestroId: m.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.maestro) {
+        localStorage.setItem("maestro", JSON.stringify(data.maestro));
+        setMaestro(data.maestro);
+        cargarGrupos(data.maestro.id);
+        return;
       }
+    } catch {
+      // si falla la verificacion, seguimos con los datos locales
     }
     setMaestro(m);
     cargarGrupos(m.id);
