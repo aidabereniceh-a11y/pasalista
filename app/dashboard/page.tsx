@@ -14,6 +14,10 @@ export default function Dashboard() {
   const [color, setColor] = useState("");
   const [grupoAEliminar, setGrupoAEliminar] = useState<any>(null);
   const [eliminando, setEliminando] = useState(false);
+  const [mostrarModalPago, setMostrarModalPago] = useState(false);
+  const [cargandoPago, setCargandoPago] = useState(false);
+  const [cargandoCancelar, setCargandoCancelar] = useState(false);
+  const [mostrarConfirmCancelar, setMostrarConfirmCancelar] = useState(false);
 
   useEffect(() => {
     const data = localStorage.getItem("maestro");
@@ -116,7 +120,8 @@ export default function Dashboard() {
   window.location.href = data.url
 }
 
-  const irAPagar = async () => {
+  const irAPagarManual = async () => {
+    setCargandoPago(true);
     const respuesta = await fetch("/api/pago", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,6 +129,34 @@ export default function Dashboard() {
     });
     const data = await respuesta.json();
     window.location.href = data.url;
+  };
+
+  const irASuscripcion = async () => {
+    setCargandoPago(true);
+    const respuesta = await fetch("/api/pago/suscripcion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id, maestroEmail: maestro.email }),
+    });
+    const data = await respuesta.json();
+    window.location.href = data.url;
+  };
+
+  const cancelarSuscripcion = async () => {
+    if (cargandoCancelar) return;
+    setCargandoCancelar(true);
+    const res = await fetch("/api/cancelar-suscripcion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id }),
+    });
+    if (res.ok) {
+      const m = { ...maestro, preapproval_id: null };
+      setMaestro(m);
+      localStorage.setItem("maestro", JSON.stringify(m));
+    }
+    setMostrarConfirmCancelar(false);
+    setCargandoCancelar(false);
   };
 
   const cerrarSesion = () => { localStorage.removeItem("maestro"); window.location.href = "/login"; };
@@ -139,16 +172,28 @@ export default function Dashboard() {
             <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>Bienvenido, {maestro.nombre}</p>
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
-              {maestro.plan === "premium" ? "Premium" : "Gratis"}
-            </span>
-            {maestro.plan === "premium" && maestro.premium_hasta && (
-              <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
-              </span>
-            )}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
+                  {maestro.plan === "premium" ? "Premium" : "Gratis"}
+                </span>
+                {maestro.plan === "premium" && maestro.premium_hasta && (
+                  <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
+                  </span>
+                )}
+              </div>
+              {maestro.plan === "premium" && maestro.preapproval_id && (
+                <button
+                  onClick={() => setMostrarConfirmCancelar(true)}
+                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "11px", cursor: "pointer", padding: "2px 0", textDecoration: "underline", marginTop: "2px" }}
+                >
+                  cancelar suscripción
+                </button>
+              )}
+            </div>
             {maestro.plan !== "premium" && (
-              <button onClick={irAPagar} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+              <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                 Actualizar a Premium $35/mes
               </button>
             )}
@@ -248,6 +293,65 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {mostrarModalPago && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "400px", width: "100%" }}>
+            <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", fontWeight: "700", textAlign: "center" }}>Elige como pagar</h3>
+            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>Plan Premium - $35 MXN/mes</p>
+
+            <button
+              onClick={irASuscripcion}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
+            >
+              💳 Suscripción automática (tarjeta)
+            </button>
+            <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
+              Se renueva sola cada mes. Cancela cuando quieras.
+            </p>
+
+            <button
+              onClick={irAPagarManual}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
+            >
+              🏪 Pago único (tarjeta, OXXO, SPEI)
+            </button>
+            <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
+              Pagas cada mes manualmente, sin renovación automática.
+            </p>
+
+            <button
+              onClick={() => setMostrarModalPago(false)}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mostrarConfirmCancelar && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Cancelar suscripción automática?</h3>
+            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
+              No se te cobrará de nuevo. Tu Premium sigue activo hasta que termine el periodo ya pagado.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setMostrarConfirmCancelar(false)} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
+                Volver
+              </button>
+              <button onClick={cancelarSuscripcion} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: cargandoCancelar ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
+                {cargandoCancelar ? "Cancelando..." : "Si, cancelar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {grupoAEliminar && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
