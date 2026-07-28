@@ -2,7 +2,6 @@
 export const runtime = "edge";
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 
 export default function CheckIn() {
   const params = useParams();
@@ -19,58 +18,16 @@ export default function CheckIn() {
     setCargando(true);
     setMensaje("");
 
-    const { data: alumnoData } = await supabase.from("alumnos").select("id").eq("nombre", alumnoNombre).eq("grupo_id", grupoId).single();
+    const res = await fetch("/api/checkin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumnoNombre, grupoId, accion }),
+    });
+    const data = await res.json();
 
-    if (!alumnoData) {
+    if (!res.ok) {
       setColor("#ef4444");
-      setMensaje("Error: alumno no encontrado");
-      setCargando(false);
-      return;
-    }
-
-    const alumnoId = alumnoData.id;
-    const hoy = new Date();
-    const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString();
-
-    const { data: registrosHoy } = await supabase.from("asistencia").select("*").eq("alumno_id", alumnoId).eq("grupo_id", grupoId).gte("fecha", inicio).order("fecha", { ascending: false });
-
-    const ultimaAccion = registrosHoy && registrosHoy.length > 0 ? registrosHoy[0].accion : "";
-    const presenteHoy = registrosHoy ? registrosHoy.some((r: any) => r.accion === "Presente") : false;
-
-    if (accion === "Presente" && presenteHoy) {
-      setColor("#ef4444");
-      setMensaje("Error: Asistencia ya registrada hoy");
-      setCargando(false);
-      return;
-    }
-
-    // Validación: no permitir baño si el alumno no está presente
-    if ((accion === "Salida al banio" || accion === "Regreso del banio") && !presenteHoy) {
-      setColor("#ef4444");
-      setMensaje("Error: El alumno no ha registrado asistencia hoy");
-      setCargando(false);
-      return;
-    }
-
-    if (accion === "Salida al banio" && ultimaAccion === "Salida al banio") {
-      setColor("#ef4444");
-      setMensaje("Error: El alumno ya esta fuera del aula");
-      setCargando(false);
-      return;
-    }
-
-    if (accion === "Regreso del banio" && ultimaAccion !== "Salida al banio") {
-      setColor("#ef4444");
-      setMensaje("Error: No hay salida al banio activa");
-      setCargando(false);
-      return;
-    }
-
-    const { error } = await supabase.from("asistencia").insert({ alumno_id: alumnoId, grupo_id: grupoId, accion, fecha: new Date().toISOString() });
-
-    if (error) {
-      setColor("#ef4444");
-      setMensaje("Error al registrar, intenta de nuevo");
+      setMensaje("Error: " + (data.error || "intenta de nuevo"));
     } else if (accion === "Presente") {
       setColor("#22c55e");
       setMensaje("Asistencia registrada correctamente");
@@ -105,7 +62,7 @@ export default function CheckIn() {
       }}>
         <div style={{ fontSize: "48px", marginBottom: "8px" }}>📚</div>
         <h1 style={{ margin: "0 0 4px 0", fontSize: "20px", color: "#1e293b", fontWeight: "700" }}>Asistencia QR Escolar</h1>
-        <div style={{ background: "#f1f5f9", borderRadius: "16px", padding: "16px", marginBottom: "28px", marginTop: "16px" }}>
+        <div style={{ background: "#f1f5f9", borderRadius: "16px", padding: "16px", marginBottom: "28px",marginTop: "16px" }}>
           <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px" }}>Alumno</p>
           <p style={{ margin: 0, fontSize: "20px", fontWeight: "700", color: "#2563eb" }}>{alumnoNombre}</p>
         </div>
@@ -116,7 +73,7 @@ export default function CheckIn() {
           <button onClick={() => guardar("Salida al banio")} disabled={cargando} style={{ padding: "16px", fontSize: "18px", fontWeight: "600", width: "100%", backgroundColor: cargando ? "#cbd5e1" : "#f59e0b", color: "white", border: "none", borderRadius: "14px", cursor: cargando ? "not-allowed" : "pointer", boxShadow: cargando ? "none" : "0 4px 14px rgba(245,158,11,0.4)" }}>
             🚻 Salida al banio
           </button>
-          <button onClick={() => guardar("Regreso del banio")} disabled={cargando} style={{ padding: "16px", fontSize: "18px", fontWeight: "600", width: "100%", backgroundColor: cargando ? "#cbd5e1" : "#3b82f6", color: "white", border: "none", borderRadius: "14px", cursor: cargando ? "not-allowed" : "pointer", boxShadow: cargando ? "none" : "0 4px 14px rgba(59,130,246,0.4)" }}>
+          <button onClick={() => guardar("Regreso del banio")} disabled={cargando} style={{ padding: "16px", fontSize: "18px", fontWeight: "600", width: "100%", backgroundColor: cargando ? "#cbd5e1" : "#3b82f6",color: "white", border: "none", borderRadius: "14px", cursor: cargando ? "not-allowed" : "pointer", boxShadow: cargando ? "none" : "0 4px 14px rgba(59,130,246,0.4)" }}>
             🔙 Regreso del banio
           </button>
         </div>

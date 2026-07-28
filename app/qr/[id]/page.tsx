@@ -2,7 +2,6 @@
 export const runtime = "edge";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 
 export default function QRPage() {
   const params = useParams();
@@ -10,17 +9,28 @@ export default function QRPage() {
   const [alumnos, setAlumnos] = useState<any[]>([]);
   const [grupo, setGrupo] = useState<any>(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [noAutorizado, setNoAutorizado] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    const data = localStorage.getItem("maestro");
+    if (!data) { window.location.href = "/login"; return; }
     cargarDatos();
   }, [id]);
 
   const cargarDatos = async () => {
-    const { data: grupoData } = await supabase.from("grupos").select("*").eq("id", id).single();
-    setGrupo(grupoData);
-    const { data: alumnosData } = await supabase.from("alumnos").select("*").eq("grupo_id", id);
-    setAlumnos(alumnosData || []);
+    const data = localStorage.getItem("maestro");
+    if (!data) return;
+    const maestro = JSON.parse(data);
+
+    const res = await fetch(`/api/asistencia-vivo?grupoId=${id}&maestroId=${maestro.id}`);
+    if (!res.ok) {
+      setNoAutorizado(true);
+      return;
+    }
+    const resultado = await res.json();
+    setGrupo(resultado.grupo);
+    setAlumnos(resultado.alumnos || []);
   };
 
   const urlBase = "https://pasalista.mx/checkin/";
@@ -68,7 +78,7 @@ export default function QRPage() {
           </style>
         </head>
         <body>
-          <h1>Codigos QR — Grupo ${grupo?.nombre || ""}</h1>
+          <h1>Codigos QR â€” Grupo ${grupo?.nombre || ""}</h1>
           <div class="grid">
             ${alumnos.map(alumno => {
               const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
@@ -103,7 +113,24 @@ export default function QRPage() {
     setGenerandoPDF(false);
   };
 
-  if (!grupo) return <div style={{ color: "white", padding: "40px", textAlign: "center" }}>Cargando...</div>;
+  if (noAutorizado) {
+    return (
+      <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <p>No tienes acceso a este grupo, o ya no existe.</p>
+          <a href="/dashboard" style={{ color: "#818cf8" }}>Volver al dashboard</a>
+        </div>
+      </main>
+    );
+  }
+
+  if (!grupo) {
+    return (
+      <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontFamily: "Arial, sans-serif" }}>
+        <div>Cargando...</div>
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", fontFamily: "Arial, sans-serif", padding: "24px", color: "white" }}>
@@ -128,12 +155,12 @@ export default function QRPage() {
                 cursor: generandoPDF ? "not-allowed" : "pointer",
               }}
             >
-              {generandoPDF ? "Generando..." : "📄 Descargar PDF"}
+              {generandoPDF ? "Generando..." : "ðŸ“„ Descargar PDF"}
             </button>
             <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Volver</a>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap:"16px" }}>
           {alumnos.map((alumno) => (
             <div key={alumno.id} style={{ background: "white", borderRadius: "16px", padding: "16px", textAlign: "center" }}>
               <p style={{ color: "#1e293b", fontSize: "12px", fontWeight: "700", marginBottom: "12px", marginTop: 0 }}>{alumno.nombre}</p>
