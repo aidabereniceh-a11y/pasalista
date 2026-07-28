@@ -78,7 +78,7 @@ export default function QRPage() {
           </style>
         </head>
         <body>
-          <h1>Codigos QR â€” Grupo ${grupo?.nombre || ""}</h1>
+          <h1>Codigos QR - Grupo ${grupo?.nombre || ""}</h1>
           <div class="grid">
             ${alumnos.map(alumno => {
               const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
@@ -155,7 +155,7 @@ export default function QRPage() {
                 cursor: generandoPDF ? "not-allowed" : "pointer",
               }}
             >
-              {generandoPDF ? "Generando..." : "ðŸ“„ Descargar PDF"}
+              {generandoPDF ? "Generando..." : "Descargar PDF"}
             </button>
             <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Volver</a>
           </div>
