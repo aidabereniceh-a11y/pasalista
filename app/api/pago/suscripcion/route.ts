@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: 35,
+      transaction_amount: 49,
       currency_id: "MXN",
     },
     back_url: "https://pasalista.mx/pago/exitoso?maestro=" + maestroId,

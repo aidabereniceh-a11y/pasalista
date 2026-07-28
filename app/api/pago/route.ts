@@ -8,7 +8,7 @@ export async function POST(request: Request) {
       {
         title: "Asistencia QR Escolar - Plan Premium (1 mes)",
         quantity: 1,
-        unit_price: 35,
+        unit_price: 49,
         currency_id: "MXN",
       },
     ],
