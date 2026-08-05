@@ -124,6 +124,10 @@ export default function Dashboard() {
     }),
   })
   const data = await res.json()
+  if (!data.url) {
+    alert("Error al conectar con MercadoPago. Intenta de nuevo.")
+    return
+  }
   window.location.href = data.url
 }
 

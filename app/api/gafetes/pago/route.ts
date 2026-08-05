@@ -32,5 +32,8 @@ export async function POST(request: Request) {
   });
 
   const data = await response.json();
+  if (!data.init_point) {
+    return Response.json({ error: data.message || "Error MercadoPago" }, { status: 400 });
+  }
   return Response.json({ url: data.init_point });
 }
