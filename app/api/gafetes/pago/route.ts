@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer APP_USR-3590582654218222-060517-286eaebdef27d1b7ebfe00b397e051d9-3453986570",
+        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN ?? ""}`,
       },
       body: JSON.stringify(preference),
     });
