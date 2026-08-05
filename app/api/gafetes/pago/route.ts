@@ -1,24 +1,29 @@
-// v2
+// v3 - forzar cache bust
 export const runtime = "edge";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { grupoId, grupoNombre, maestroId } = body;
 
+    const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    
+    if (!token) {
+      return Response.json({ error: "Token no configurado" }, { status: 500 });
+    }
+
     if (!grupoId || !grupoNombre || !maestroId) {
-      return Response.json({ error: "Faltan datos", body }, { status: 400 });
+      return Response.json({ error: "Faltan datos" }, { status: 400 });
     }
 
     const preference = {
-      items: [
-        {
-          id: String(grupoId),
-          title: `Gafetes QR — ${grupoNombre}`,
-          quantity: 1,
-          unit_price: 99,
-          currency_id: "MXN",
-        },
-      ],
+      items: [{
+        id: String(grupoId),
+        title: `Gafetes QR — ${grupoNombre}`,
+        quantity: 1,
+        unit_price: 99,
+        currency_id: "MXN",
+      }],
       back_urls: {
         success: `https://pasalista.mx/dashboard?gafetes=ok&grupo=${grupoId}`,
         failure: `https://pasalista.mx/dashboard?gafetes=error`,
@@ -33,19 +38,19 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN ?? ""}`,
+        "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify(preference),
     });
 
-    const data = await response.json();
-
-    if (!data.init_point) {
-      return Response.json({ error: "MercadoPago no devolvio init_point", mp_error: data }, { status: 500 });
+    const text = await response.text();
+    
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return Response.json({ error: "MP response no es JSON", raw: text }, { status: 500 });
     }
 
-    return Response.json({ url: data.init_point });
-  } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 });
-  }
-}
+    if (!data.init_point) {
+      return Response.json({ error: "Sin
