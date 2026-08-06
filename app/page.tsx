@@ -318,7 +318,7 @@ export default function Home() {
             Escanea los gafetes QR de tus alumnos aún más rápido desde nuestra app nativa para Android.
           </p>
           <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
-<a              href="/pasalista.apk"
+<a              href="https://github.com/aidabereniceh-a11y/pasalista/releases/download/v1.0.0/application-6f960940-4871-4b93-b359-66463e5bdac8.apk"
               download
               style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "16px 32px", borderRadius: "14px", textDecoration: "none", display: "flex", alignItems: "center", gap: "12px", fontWeight: "700", fontSize: "16px", boxShadow: "0 4px 20px rgba(102,126,234,0.4)" }}>
               <span style={{ fontSize: "28px" }}>🤖</span>
