@@ -37,12 +37,10 @@ export default function Dashboard() {
   };
 
   const cargarGrupos = async (maestroId: number) => {
-    const { data } = await supabase
-      .from("grupos")
-      .select("*")
-      .eq("maestro_id", maestroId);
-    setGrupos(data || []);
-  };
+  const res = await fetch("/api/grupos?maestroId=" + maestroId);
+  const data = await res.json();
+  setGrupos(data.grupos || []);
+};
 
   const crearGrupo = async () => {
     if (cargando) return;
