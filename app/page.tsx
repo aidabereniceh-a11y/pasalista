@@ -307,7 +307,39 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+{/* APP MOVIL */}
+      <section style={{ background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", padding: "80px 24px", color: "white", textAlign: "center" }}>
+        <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+          <div style={{ fontSize: "64px", marginBottom: "16px" }}>📱</div>
+          <h2 style={{ fontSize: "clamp(28px, 5vw, 36px)", fontWeight: "800", marginBottom: "16px" }}>
+            Descarga nuestra app
+          </h2>
+          <p style={{ color: "#94a3b8", fontSize: "18px", marginBottom: "40px", lineHeight: 1.6 }}>
+            Escanea los gafetes QR de tus alumnos aún más rápido desde nuestra app nativa para Android.
+          </p>
+          <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+<a              href="/pasalista.apk"
+              download
+              style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", padding: "16px 32px", borderRadius: "14px", textDecoration: "none", display: "flex", alignItems: "center", gap: "12px", fontWeight: "700", fontSize: "16px", boxShadow: "0 4px 20px rgba(102,126,234,0.4)" }}>
+              <span style={{ fontSize: "28px" }}>🤖</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: "11px", opacity: 0.8 }}>Descargar para</div>
+                <div>Android APK</div>
+              </div>
+            </a>
+            <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "14px", padding: "16px 32px", display: "flex", alignItems: "center", gap: "12px", opacity: 0.6 }}>
+              <span style={{ fontSize: "28px" }}>🍎</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: "11px", color: "#94a3b8" }}>Próximamente en</div>
+                <div style={{ fontSize: "16px", fontWeight: "700" }}>App Store</div>
+              </div>
+            </div>
+          </div>
+          <p style={{ color: "#64748b", fontSize: "13px", marginTop: "24px" }}>
+            Para instalar el APK en Android activa "Instalar apps de fuentes desconocidas" en Configuración → Seguridad
+          </p>
+        </div>
+      </section>
       {/* CTA FINAL */}
       <section style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "80px 24px", textAlign: "center", color: "white" }}>
         <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", fontWeight: "800", margin: "0 0 16px 0" }}>Lista para modernizar tu lista de asistencia?</h2>
