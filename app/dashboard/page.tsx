@@ -26,7 +26,11 @@ export default function Dashboard() {
     if (m.plan === "premium" && m.premium_hasta) {
       const vencio = new Date(m.premium_hasta) < new Date();
       if (vencio) {
-        await supabase.from("maestros").update({ plan: "gratis" }).eq("id", m.id);
+        await fetch("/api/maestros/verificar-vigencia", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maestroId: m.id }),
+        });
         m.plan = "gratis";
         delete m.premium_hasta;
         localStorage.setItem("maestro", JSON.stringify(m));
@@ -96,13 +100,11 @@ const crearGrupo = async () => {
 
   const handleGafetes = async (g: any) => {
     if (g.gafetes_pagado) {
-      const { data: alumnosGrupo } = await supabase
-        .from("alumnos")
-        .select("id, nombre")
-        .eq("grupo_id", g.id);
+      const res = await fetch("/api/alumnos?grupoId=" + g.id);
+      const data = await res.json();
       const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
       await generarGafetesPDF(
-        alumnosGrupo || [],
+        data.alumnos || [],
         { nombre: g.nombre, grado: g.grado },
         { nombre: maestro.nombre, email: maestro.email }
       );
