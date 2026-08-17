@@ -42,22 +42,35 @@ export default function Dashboard() {
   setGrupos(data.grupos || []);
 };
 
-  const crearGrupo = async () => {
+const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
-
-    if (maestro.plan === "gratis") {
-      const { count } = await supabase.from("grupos").select("*", { count: "exact", head: true }).eq("maestro_id", maestro.id);
-      if ((count || 0) >= 1) { setColor("#ef4444"); setMensaje("Plan gratis: solo 1 grupo. Actualiza a premium."); return; }
-    }
 
     setCargando(true);
     setMensaje("");
     const nombreGrupo = grado + " " + grupo;
-    const { data: grupoData, error } = await supabase.from("grupos").insert({ maestro_id: maestro.id, nombre: nombreGrupo, grado, grupo }).select().single();
-    if (error || !grupoData) { setColor("#ef4444"); setMensaje("Error al crear el grupo"); setCargando(false); return; }
-    const listaAlumnos = alumnos.split("\n").map((a) => a.trim().toUpperCase()).filter((a) => a.length > 0).map((nombre) => ({ grupo_id: grupoData.id, nombre }));
-    await supabase.from("alumnos").insert(listaAlumnos);
+    const listaAlumnos = alumnos.split("\n").map((a) => a.trim()).filter((a) => a.length > 0);
+
+    const res = await fetch("/api/grupos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        maestroId: maestro.id,
+        nombre: nombreGrupo,
+        grado,
+        grupo,
+        alumnos: listaAlumnos,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      setColor("#ef4444");
+      setMensaje(data.error || "Error al crear el grupo");
+      setCargando(false);
+      return;
+    }
+
     setColor("#22c55e");
     setMensaje("Grupo creado correctamente");
     setAlumnos("");
