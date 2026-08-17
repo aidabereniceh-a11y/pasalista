@@ -67,23 +67,19 @@ export default function Dashboard() {
   };
 
   const eliminarGrupo = async () => {
-    if (!grupoAEliminar || eliminando) return;
-    setEliminando(true);
-    const grupoId = grupoAEliminar.id;
+  if (!grupoAEliminar || eliminando) return;
+  setEliminando(true);
 
-    const { data: alumnosDelGrupo } = await supabase.from("alumnos").select("id").eq("grupo_id", grupoId);
-    const idsAlumnos = (alumnosDelGrupo || []).map((a) => a.id);
+  await fetch("/api/grupos/" + grupoAEliminar.id, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ maestroId: maestro.id }),
+  });
 
-    if (idsAlumnos.length > 0) {
-      await supabase.from("asistencia").delete().in("alumno_id", idsAlumnos);
-    }
-    await supabase.from("alumnos").delete().eq("grupo_id", grupoId);
-    await supabase.from("grupos").delete().eq("id", grupoId);
-
-    setGrupoAEliminar(null);
-    setEliminando(false);
-    cargarGrupos(maestro.id);
-  };
+  setGrupoAEliminar(null);
+  setEliminando(false);
+  cargarGrupos(maestro.id);
+};
 
   const handleGafetes = async (g: any) => {
     if (g.gafetes_pagado) {
