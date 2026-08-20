@@ -1,6 +1,6 @@
 export const runtime = "edge";
 
-import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 export async function POST(request: Request) {
   const { maestroId } = await request.json();
