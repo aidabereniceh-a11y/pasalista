@@ -21,10 +21,11 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { data: alumnos } = await supabaseAdmin
+    const { data: alumnos } = await supabaseAdmin
     .from("alumnos")
     .select("*")
-    .eq("grupo_id", grupoId);
+    .eq("grupo_id", grupoId)
+    .eq("activo", true);
 
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString();

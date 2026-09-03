@@ -14,6 +14,20 @@ export default function Dashboard() {
   const [color, setColor] = useState("");
   const [grupoAEliminar, setGrupoAEliminar] = useState<any>(null);
   const [eliminando, setEliminando] = useState(false);
+  const [mostrarModalPago, setMostrarModalPago] = useState(false);
+  const [cargandoPago, setCargandoPago] = useState(false);
+  const [cargandoCancelar, setCargandoCancelar] = useState(false);
+  const [mostrarConfirmCancelar, setMostrarConfirmCancelar] = useState(false);
+
+  const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
+  const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
+  const [cargandoAlumnosGestion, setCargandoAlumnosGestion] = useState(false);
+  const [nuevosAlumnos, setNuevosAlumnos] = useState("");
+  const [agregandoAlumnos, setAgregandoAlumnos] = useState(false);
+  const [mensajeGestion, setMensajeGestion] = useState("");
+  const [colorGestion, setColorGestion] = useState("");
+  const [dandoDeBajaId, setDandoDeBajaId] = useState<number | null>(null);
+  const [alumnoABaja, setAlumnoABaja] = useState<any>(null);
 
   useEffect(() => {
     const data = localStorage.getItem("maestro");
@@ -23,25 +37,28 @@ export default function Dashboard() {
   }, []);
 
   const verificarVigenciaPremium = async (m: any) => {
-    if (m.plan === "premium" && m.premium_hasta) {
-      const vencio = new Date(m.premium_hasta) < new Date();
-      if (vencio) {
-        await fetch("/api/maestros/verificar-vigencia", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ maestroId: m.id }),
-        });
-        m.plan = "gratis";
-        delete m.premium_hasta;
-        localStorage.setItem("maestro", JSON.stringify(m));
+    try {
+      const res = await fetch("/api/verificar-vigencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maestroId: m.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.maestro) {
+        localStorage.setItem("maestro", JSON.stringify(data.maestro));
+        setMaestro(data.maestro);
+        cargarGrupos(data.maestro.id);
+        return;
       }
+    } catch {
+      // si falla la verificacion, seguimos con los datos locales
     }
     setMaestro(m);
     cargarGrupos(m.id);
   };
 
   const cargarGrupos = async (maestroId: number) => {
-    const res = await fetch("/api/grupos?maestroId=" + maestroId);
+    const res = await fetch(`/api/grupos?maestroId=${maestroId}`);
     const data = await res.json();
     setGrupos(data.grupos || []);
   };
@@ -49,22 +66,25 @@ export default function Dashboard() {
   const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
+
     setCargando(true);
     setMensaje("");
-    const nombreGrupo = grado + " " + grupo;
-    const listaAlumnos = alumnos.split("\n").map((a) => a.trim()).filter((a) => a.length > 0);
+
+    const listaAlumnos = alumnos.split("\n");
     const res = await fetch("/api/grupos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id, nombre: nombreGrupo, grado, grupo, alumnos: listaAlumnos }),
+      body: JSON.stringify({ maestroId: maestro.id, grado, grupo, alumnos: listaAlumnos }),
     });
     const data = await res.json();
-    if (!res.ok || data.error) {
+
+    if (!res.ok) {
       setColor("#ef4444");
       setMensaje(data.error || "Error al crear el grupo");
       setCargando(false);
       return;
     }
+
     setColor("#22c55e");
     setMensaje("Grupo creado correctamente");
     setAlumnos("");
@@ -76,42 +96,49 @@ export default function Dashboard() {
   const eliminarGrupo = async () => {
     if (!grupoAEliminar || eliminando) return;
     setEliminando(true);
-    await fetch("/api/grupos/" + grupoAEliminar.id, {
+
+    await fetch(`/api/grupos/${grupoAEliminar.id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ maestroId: maestro.id }),
     });
+
     setGrupoAEliminar(null);
     setEliminando(false);
     cargarGrupos(maestro.id);
   };
 
   const handleGafetes = async (g: any) => {
-    if (g.gafetes_pagado) {
-      const res = await fetch("/api/alumnos?grupoId=" + g.id);
-      const data = await res.json();
-      const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
-      await generarGafetesPDF(
-        data.alumnos || [],
-        { nombre: g.nombre, grado: g.grado },
-        { nombre: maestro.nombre, email: maestro.email }
-      );
-      return;
-    }
-    const res = await fetch("/api/generar-gafetes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ grupoId: g.id, grupoNombre: g.nombre, maestroId: maestro.id }),
-    });
-    const data = await res.json();
-    if (!data.url) {
-      alert("Error al conectar con MercadoPago. Intenta de nuevo.");
-      return;
-    }
-    window.location.href = data.url;
-  };
+  if (g.gafetes_pagado) {
+    const { data: alumnosGrupo } = await supabase
+      .from("alumnos")
+      .select("id, nombre")
+      .eq("grupo_id", g.id)
 
-  const irAPagar = async () => {
+    const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF")
+    await generarGafetesPDF(
+      alumnosGrupo || [],
+      { nombre: g.nombre, grado: g.grado },
+      { nombre: maestro.nombre, email: maestro.email }
+    )
+    return
+  }
+
+  const res = await fetch("/api/gafetes/pago", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grupoId: g.id,
+      grupoNombre: g.nombre,
+      maestroId: maestro.id,
+    }),
+  })
+  const data = await res.json()
+  window.location.href = data.url
+}
+
+  const irAPagarManual = async () => {
+    setCargandoPago(true);
     const respuesta = await fetch("/api/pago", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -121,9 +148,99 @@ export default function Dashboard() {
     window.location.href = data.url;
   };
 
-  const cerrarSesion = () => {
-    localStorage.removeItem("maestro");
-    window.location.href = "/login";
+  const irASuscripcion = async () => {
+    setCargandoPago(true);
+    const respuesta = await fetch("/api/pago/suscripcion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id, maestroEmail: maestro.email }),
+    });
+    const data = await respuesta.json();
+    window.location.href = data.url;
+  };
+
+  const cancelarSuscripcion = async () => {
+    if (cargandoCancelar) return;
+    setCargandoCancelar(true);
+    const res = await fetch("/api/cancelar-suscripcion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id }),
+    });
+    if (res.ok) {
+      const m = { ...maestro, preapproval_id: null };
+      setMaestro(m);
+      localStorage.setItem("maestro", JSON.stringify(m));
+    }
+    setMostrarConfirmCancelar(false);
+    setCargandoCancelar(false);
+  };
+
+  const cerrarSesion = () => { localStorage.removeItem("maestro"); window.location.href = "/login"; };
+
+  const abrirGestionAlumnos = (g: any) => {
+    setGrupoGestionando(g);
+    setNuevosAlumnos("");
+    setMensajeGestion("");
+    cargarAlumnosGestion(g.id);
+  };
+
+  const cargarAlumnosGestion = async (grupoId: number) => {
+    setCargandoAlumnosGestion(true);
+    const res = await fetch(`/api/alumnos?grupoId=${grupoId}&maestroId=${maestro.id}`);
+    const data = await res.json();
+    setAlumnosGestion((data.alumnos || []).filter((a: any) => a.activo !== false));
+    setCargandoAlumnosGestion(false);
+  };
+
+  const agregarAlumnosGestion = async () => {
+    if (agregandoAlumnos || !grupoGestionando) return;
+    if (!nuevosAlumnos.trim()) {
+      setColorGestion("#ef4444");
+      setMensajeGestion("Agrega al menos un nombre");
+      return;
+    }
+    setAgregandoAlumnos(true);
+    setMensajeGestion("");
+
+    const res = await fetch("/api/alumnos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupoId: grupoGestionando.id,
+        maestroId: maestro.id,
+        nombres: nuevosAlumnos.split("\n"),
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setColorGestion("#ef4444");
+      setMensajeGestion(data.error || "Error al agregar alumnos");
+      setAgregandoAlumnos(false);
+      return;
+    }
+
+    setColorGestion("#22c55e");
+    setMensajeGestion("Alumnos agregados correctamente");
+    setNuevosAlumnos("");
+    cargarAlumnosGestion(grupoGestionando.id);
+    setAgregandoAlumnos(false);
+  };
+
+  const confirmarBajaAlumno = async () => {
+    if (!alumnoABaja || !grupoGestionando || dandoDeBajaId) return;
+    setDandoDeBajaId(alumnoABaja.id);
+
+    await fetch(`/api/alumnos/${alumnoABaja.id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id }),
+    });
+
+    setAlumnoABaja(null);
+    setDandoDeBajaId(null);
+    cargarAlumnosGestion(grupoGestionando.id);
   };
 
   if (!maestro) return null;
@@ -137,16 +254,28 @@ export default function Dashboard() {
             <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>Bienvenido, {maestro.nombre}</p>
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
-              {maestro.plan === "premium" ? "Premium" : "Gratis"}
-            </span>
-            {maestro.plan === "premium" && maestro.premium_hasta && (
-              <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
-              </span>
-            )}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
+                  {maestro.plan === "premium" ? "Premium" : "Gratis"}
+                </span>
+                {maestro.plan === "premium" && maestro.premium_hasta && (
+                  <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
+                  </span>
+                )}
+              </div>
+              {maestro.plan === "premium" && maestro.preapproval_id && (
+                <button
+                  onClick={() => setMostrarConfirmCancelar(true)}
+                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "11px", cursor: "pointer", padding: "2px 0", textDecoration: "underline", marginTop: "2px" }}
+                >
+                  cancelar suscripción
+                </button>
+              )}
+            </div>
             {maestro.plan !== "premium" && (
-              <button onClick={irAPagar} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+              <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                 Actualizar a Premium $49/mes
               </button>
             )}
@@ -212,9 +341,13 @@ export default function Dashboard() {
                   <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>Creado el {new Date(g.created_at).toLocaleDateString("es-MX")}</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  <a href={"/grupo/" + g.id} style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Gestionar alumnos</a>
                   <a href={"/asistencia/" + g.id} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
                   <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
+                  <button
+                    onClick={() => abrirGestionAlumnos(g)}
+                    style={{ background: "rgba(148,163,184,0.15)", color: "#cbd5e1", border: "1px solid rgba(148,163,184,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                    Gestionar alumnos
+                  </button>
                   <button
                     onClick={() => handleGafetes(g)}
                     style={{
@@ -247,6 +380,139 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {mostrarModalPago && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "400px", width: "100%" }}>
+            <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", fontWeight: "700", textAlign: "center" }}>Elige como pagar</h3>
+            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>Plan Premium - $49 MXN/mes</p>
+
+            <button
+              onClick={irASuscripcion}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
+            >
+              💳 Suscripción automática (tarjeta)
+            </button>
+            <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
+              Se renueva sola cada mes. Cancela cuando quieras.
+            </p>
+
+            <button
+              onClick={irAPagarManual}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
+            >
+              🏪 Pago único (tarjeta, OXXO, SPEI)
+            </button>
+            <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
+              Pagas cada mes manualmente, sin renovación automática.
+            </p>
+
+            <button
+              onClick={() => setMostrarModalPago(false)}
+              disabled={cargandoPago}
+              style={{ width: "100%", padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mostrarConfirmCancelar && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Cancelar suscripción automática?</h3>
+            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
+              No se te cobrará de nuevo. Tu Premium sigue activo hasta que termine el periodo ya pagado.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setMostrarConfirmCancelar(false)} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
+                Volver
+              </button>
+              <button onClick={cancelarSuscripcion} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: cargandoCancelar ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
+                {cargandoCancelar ? "Cancelando..." : "Si, cancelar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {grupoGestionando && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "480px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>Gestionar alumnos</h3>
+              <button onClick={() => setGrupoGestionando(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoGestionando.nombre}</p>
+
+            <div style={{ overflowY: "auto", marginBottom: "16px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+              {cargandoAlumnosGestion ? (
+                <div style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>Cargando...</div>
+              ) : alumnosGestion.length === 0 ? (
+                <div style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No hay alumnos activos</div>
+              ) : (
+                alumnosGestion.map((a) => (
+                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ fontSize: "13px", color: "#e2e8f0" }}>{a.nombre}</span>
+                    <button
+                      onClick={() => setAlumnoABaja(a)}
+                      disabled={dandoDeBajaId === a.id}
+                      style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", cursor: dandoDeBajaId === a.id ? "not-allowed" : "pointer" }}
+                    >
+                      {dandoDeBajaId === a.id ? "..." : "Dar de baja"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Agregar alumnos (un nombre por linea)</label>
+            <textarea
+              value={nuevosAlumnos}
+              onChange={(e) => setNuevosAlumnos(e.target.value)}
+              placeholder={"GARCIA LOPEZ JUAN\nMARTINEZ PEREZ ANA"}
+              rows={4}
+              style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box", marginBottom: "10px" }}
+            />
+            <button
+              onClick={agregarAlumnosGestion}
+              disabled={agregandoAlumnos}
+              style={{ width: "100%", padding: "12px", background: agregandoAlumnos ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: agregandoAlumnos ? "not-allowed" : "pointer" }}
+            >
+              {agregandoAlumnos ? "Agregando..." : "Agregar alumnos"}
+            </button>
+            {mensajeGestion && (
+              <div style={{ marginTop: "10px", background: colorGestion, color: "white", padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: "600" }}>
+                {mensajeGestion}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {alumnoABaja && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1100 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Dar de baja a {alumnoABaja.nombre}?</h3>
+            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
+              Ya no aparecera en la lista ni en nuevos codigos QR. Su historial de asistencia se conserva.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setAlumnoABaja(null)} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={confirmarBajaAlumno} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: dandoDeBajaId ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
+                {dandoDeBajaId ? "..." : "Si, dar de baja"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {grupoAEliminar && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>

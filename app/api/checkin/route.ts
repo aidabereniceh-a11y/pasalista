@@ -9,11 +9,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Faltan datos" }, { status: 400 });
   }
 
-  const { data: alumnoData } = await supabaseAdmin
+    const { data: alumnoData } = await supabaseAdmin
     .from("alumnos")
     .select("id")
     .eq("nombre", alumnoNombre)
     .eq("grupo_id", grupoId)
+    .eq("activo", true)
     .single();
 
   if (!alumnoData) {
