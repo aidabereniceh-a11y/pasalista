@@ -41,40 +41,30 @@ export default function Dashboard() {
   };
 
   const cargarGrupos = async (maestroId: number) => {
-  const res = await fetch("/api/grupos?maestroId=" + maestroId);
-  const data = await res.json();
-  setGrupos(data.grupos || []);
-};
+    const res = await fetch("/api/grupos?maestroId=" + maestroId);
+    const data = await res.json();
+    setGrupos(data.grupos || []);
+  };
 
-const crearGrupo = async () => {
+  const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
-
     setCargando(true);
     setMensaje("");
     const nombreGrupo = grado + " " + grupo;
     const listaAlumnos = alumnos.split("\n").map((a) => a.trim()).filter((a) => a.length > 0);
-
     const res = await fetch("/api/grupos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        maestroId: maestro.id,
-        nombre: nombreGrupo,
-        grado,
-        grupo,
-        alumnos: listaAlumnos,
-      }),
+      body: JSON.stringify({ maestroId: maestro.id, nombre: nombreGrupo, grado, grupo, alumnos: listaAlumnos }),
     });
     const data = await res.json();
-
     if (!res.ok || data.error) {
       setColor("#ef4444");
       setMensaje(data.error || "Error al crear el grupo");
       setCargando(false);
       return;
     }
-
     setColor("#22c55e");
     setMensaje("Grupo creado correctamente");
     setAlumnos("");
@@ -84,19 +74,17 @@ const crearGrupo = async () => {
   };
 
   const eliminarGrupo = async () => {
-  if (!grupoAEliminar || eliminando) return;
-  setEliminando(true);
-
-  await fetch("/api/grupos/" + grupoAEliminar.id, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ maestroId: maestro.id }),
-  });
-
-  setGrupoAEliminar(null);
-  setEliminando(false);
-  cargarGrupos(maestro.id);
-};
+    if (!grupoAEliminar || eliminando) return;
+    setEliminando(true);
+    await fetch("/api/grupos/" + grupoAEliminar.id, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maestroId: maestro.id }),
+    });
+    setGrupoAEliminar(null);
+    setEliminando(false);
+    cargarGrupos(maestro.id);
+  };
 
   const handleGafetes = async (g: any) => {
     if (g.gafetes_pagado) {
@@ -110,15 +98,10 @@ const crearGrupo = async () => {
       );
       return;
     }
-
     const res = await fetch("/api/generar-gafetes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grupoId: g.id,
-        grupoNombre: g.nombre,
-        maestroId: maestro.id,
-      }),
+      body: JSON.stringify({ grupoId: g.id, grupoNombre: g.nombre, maestroId: maestro.id }),
     });
     const data = await res.json();
     if (!data.url) {
@@ -138,7 +121,10 @@ const crearGrupo = async () => {
     window.location.href = data.url;
   };
 
-  const cerrarSesion = () => { localStorage.removeItem("maestro"); window.location.href = "/login"; };
+  const cerrarSesion = () => {
+    localStorage.removeItem("maestro");
+    window.location.href = "/login";
+  };
 
   if (!maestro) return null;
 
@@ -228,7 +214,6 @@ const crearGrupo = async () => {
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   <a href={"/grupo/" + g.id} style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Gestionar alumnos</a>
                   <a href={"/asistencia/" + g.id} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
-                  <a href={"/grupo/" + g.id} style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Gestionar alumnos</a> 
                   <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
                   <button
                     onClick={() => handleGafetes(g)}
