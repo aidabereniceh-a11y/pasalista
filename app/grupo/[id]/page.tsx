@@ -22,7 +22,7 @@ export default function GrupoPage() {
   const cargarDatos = async () => {
     const { data: grupoData } = await supabase.from("grupos").select("*").eq("id", id).single();
     setGrupo(grupoData);
-    const { data: alumnosData } = await supabase.from("alumnos").select("*").eq("grupo_id", id).order("nombre");
+    const { data: alumnosData } = await supabase.from("alumnos").select("*").eq("grupo_id", id).eq("activo", true).order("nombre");
     setAlumnos(alumnosData || []);
   };
 
@@ -34,7 +34,7 @@ export default function GrupoPage() {
       return;
     }
     setCargando(true);
-    const { error } = await supabase.from("alumnos").insert({ grupo_id: id, nombre: nuevoAlumno.trim().toUpperCase() });
+    const { error } = await supabase.from("alumnos").insert({ grupo_id: id, nombre: nuevoAlumno.trim().toUpperCase(), activo: true });
     if (error) {
       setColor("#ef4444");
       setMensaje("Error al agregar alumno");
@@ -48,15 +48,15 @@ export default function GrupoPage() {
     setTimeout(() => setMensaje(""), 3000);
   };
 
-  const eliminarAlumno = async (alumnoId: number, nombre: string) => {
-    if (!confirm("Eliminar a " + nombre + "?")) return;
-    const { error } = await supabase.from("alumnos").delete().eq("id", alumnoId);
+  const desactivarAlumno = async (alumnoId: number, nombre: string) => {
+    if (!confirm("Dar de baja a " + nombre + "? Su historial de asistencia se conservara.")) return;
+    const { error } = await supabase.from("alumnos").update({ activo: false }).eq("id", alumnoId);
     if (error) {
       setColor("#ef4444");
-      setMensaje("Error al eliminar alumno");
+      setMensaje("Error al dar de baja al alumno");
     } else {
       setColor("#22c55e");
-      setMensaje("Alumno eliminado");
+      setMensaje("Alumno dado de baja. Su historial se conserva.");
       cargarDatos();
     }
     setTimeout(() => setMensaje(""), 3000);
@@ -70,7 +70,7 @@ export default function GrupoPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
           <div>
             <h1 style={{ fontSize: "24px", fontWeight: "700", margin: 0 }}>Grupo {grupo.nombre}</h1>
-            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>{alumnos.length} alumnos</p>
+            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>{alumnos.length} alumnos activos</p>
           </div>
           <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>Volver</a>
         </div>
@@ -103,12 +103,12 @@ export default function GrupoPage() {
 
         <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", overflow: "hidden" }}>
           <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "14px", fontWeight: "700", color: "#86efac" }}>Lista de alumnos</span>
+            <span style={{ fontSize: "14px", fontWeight: "700", color: "#86efac" }}>Lista de alumnos activos</span>
             <span style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80", padding: "3px 10px", borderRadius: "20px", fontSize: "12px" }}>{alumnos.length}</span>
           </div>
           <div style={{ padding: "12px", maxHeight: "500px", overflowY: "auto" }}>
             {alumnos.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "30px", color: "#475569" }}>No hay alumnos en este grupo</div>
+              <div style={{ textAlign: "center", padding: "30px", color: "#475569" }}>No hay alumnos activos en este grupo</div>
             ) : alumnos.map((alumno, index) => (
               <div key={alumno.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", marginBottom: "4px", background: "rgba(255,255,255,0.02)" }}>
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "rgba(99,102,241,0.2)", color: "#818cf8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700", flexShrink: 0 }}>
@@ -116,10 +116,10 @@ export default function GrupoPage() {
                 </div>
                 <span style={{ flex: 1, fontSize: "13px", color: "#cbd5e1" }}>{alumno.nombre}</span>
                 <button
-                  onClick={() => eliminarAlumno(alumno.id, alumno.nombre)}
+                  onClick={() => desactivarAlumno(alumno.id, alumno.nombre)}
                   style={{ padding: "6px 12px", background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}
                 >
-                  Eliminar
+                  Dar de baja
                 </button>
               </div>
             ))}
