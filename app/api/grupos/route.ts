@@ -28,9 +28,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const { maestroId, nombre, grado, grupo, alumnos } = await request.json();
 
-  if (!maestroId || !nombre || !grado || !grupo) {
+  if (!maestroId || !grado || !grupo) {
     return Response.json({ error: "Faltan campos" }, { status: 400 });
   }
+
+  // Si el frontend no manda un nombre, lo generamos con grado + grupo (ej. "1A")
+  const nombreGrupo = nombre || `${grado}${grupo}`;
 
   // Verifica el plan del maestro y el limite de grupos si es gratis
   const { data: maestroData } = await supabaseAdmin
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
 
   const { data: grupoData, error } = await supabaseAdmin
     .from("grupos")
-    .insert({ maestro_id: maestroId, nombre, grado, grupo })
+    .insert({ maestro_id: maestroId, nombre: nombreGrupo, grado, grupo })
     .select()
     .single();
 
