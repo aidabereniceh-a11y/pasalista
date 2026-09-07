@@ -1,4 +1,5 @@
 // Colocar en: app/api/bitacora/route.ts
+export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
