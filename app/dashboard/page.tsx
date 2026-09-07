@@ -279,6 +279,9 @@ export default function Dashboard() {
                 Actualizar a Premium $49/mes
               </button>
             )}
+            <a href="/dashboard/diario" style={{ background: "rgba(129,140,248,0.2)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
+              📓 Diario
+            </a>
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesion
             </button>
