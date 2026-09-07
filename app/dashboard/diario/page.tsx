@@ -174,6 +174,7 @@ export default function DiarioDelMaestro() {
   const [mensaje, setMensaje] = useState("");
   const [color, setColor] = useState("");
   const [grupos, setGrupos] = useState<any[]>([]);
+  const [alumnosDelGrupo, setAlumnosDelGrupo] = useState<any[]>([]);
 
   const getMaestro = () => {
     const data = localStorage.getItem("maestro");
@@ -187,6 +188,14 @@ export default function DiarioDelMaestro() {
       .then((res) => res.json())
       .then((data) => setGrupos(data.grupos || []));
   }, []);
+
+  useEffect(() => {
+    const maestro = getMaestro();
+    if (!maestro?.id || !incGrupo) { setAlumnosDelGrupo([]); return; }
+    fetch(`/api/alumnos?grupoId=${incGrupo}&maestroId=${maestro.id}`)
+      .then((res) => res.json())
+      .then((data) => setAlumnosDelGrupo((data.alumnos || []).filter((a: any) => a.activo !== false)));
+  }, [incGrupo]);
 
   const limpiarFormulario = () => {
     setEditandoId(null);
@@ -461,11 +470,17 @@ export default function DiarioDelMaestro() {
                 </div>
                 <div>
                   <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Nombre del alumno</label>
-                  <input
+                  <select
                     value={incAlumno}
                     onChange={(e) => setIncAlumno(e.target.value)}
+                    disabled={!incGrupo}
                     style={{ ...inputStyle, width: "100%" }}
-                  />
+                  >
+                    <option value="">{incGrupo ? "Selecciona un alumno…" : "Primero selecciona un grupo"}</option>
+                    {alumnosDelGrupo.map((a) => (
+                      <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
