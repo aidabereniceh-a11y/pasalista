@@ -175,6 +175,7 @@ export default function DiarioDelMaestro() {
   const [color, setColor] = useState("");
   const [grupos, setGrupos] = useState<any[]>([]);
   const [alumnosDelGrupo, setAlumnosDelGrupo] = useState<any[]>([]);
+  const [esPremium, setEsPremium] = useState<boolean | null>(null);
 
   const getMaestro = () => {
     const data = localStorage.getItem("maestro");
@@ -183,7 +184,8 @@ export default function DiarioDelMaestro() {
 
   useEffect(() => {
     const maestro = getMaestro();
-    if (!maestro?.id) return;
+    if (!maestro?.id) { window.location.href = "/login"; return; }
+    setEsPremium(maestro.plan === "premium");
     fetch(`/api/grupos?maestroId=${maestro.id}`)
       .then((res) => res.json())
       .then((data) => setGrupos(data.grupos || []));
@@ -335,6 +337,25 @@ export default function DiarioDelMaestro() {
     display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", borderRadius: "10px",
     border: "none", color: textColor, background: bg, fontWeight: 700, fontSize: "13px", cursor: "pointer",
   });
+
+  if (esPremium === null) return null;
+
+  if (!esPremium) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#dbeafe", fontFamily: "Arial, sans-serif", padding: "24px", color: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ background: "#fff", borderRadius: "16px", padding: "40px", maxWidth: "420px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔒</div>
+          <h1 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 8px" }}>Función Premium</h1>
+          <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "24px" }}>
+            El Diario del Maestro y la Bitácora de incidencias están disponibles solo para maestros con plan Premium ($49/mes).
+          </p>
+          <a href="/dashboard" style={{ display: "inline-block", background: "#6366f1", color: "white", padding: "12px 24px", borderRadius: "10px", fontSize: "14px", fontWeight: 700, textDecoration: "none" }}>
+            Volver al dashboard
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "#dbeafe", fontFamily: "Arial, sans-serif", padding: "24px", color: "#1e293b" }}>
