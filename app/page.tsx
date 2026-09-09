@@ -265,6 +265,8 @@ export default function Home() {
               { icon: "📊", title: "Exporta a Excel", desc: "Descarga el registro de asistencia en Excel con un clic para tu supervisora." },
               { icon: "📱", title: "Solo necesitas tu celular", desc: "Sin apps extra. La camara de tu telefono es suficiente para escanear los gafetes." },
               { icon: "🪪", title: "Gafetes QR para alumnos", desc: "Genera e imprime gafetes profesionales con QR unico para cada alumno. 6 por hoja carta." },
+              { icon: "📓", title: "Diario del Maestro", desc: "Registra tu práctica docente todos los días. Dicta por voz en vez de escribir y exporta a PDF o Word cuando quieras." },
+              { icon: "⚠️", title: "Bitácora de Incidencias", desc: "Documenta incidentes de tus alumnos por grupo, con dictado por voz y exportación a PDF y Word." },
               { icon: "👥", title: "Multiples grupos", desc: "Con el plan Premium maneja todos tus grupos sin limite." },
             ].map((f) => (
               <div key={f.title} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "24px" }}>
@@ -273,6 +275,51 @@ export default function Home() {
                 <p style={{ color: "#94a3b8", fontSize: "14px", lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* DIARIO Y BITACORA */}
+      <section style={{ background: "#f0f4ff", padding: "80px 24px" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{ display: "inline-block", background: "rgba(102,126,234,0.15)", borderRadius: "20px", padding: "6px 16px", fontSize: "13px", fontWeight: "700", color: "#667eea", marginBottom: "16px" }}>
+            ⭐ Incluido en el plan Premium
+          </div>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: "800", color: "#1e293b", marginBottom: "16px", lineHeight: 1.3 }}>
+            Diario del Maestro y Bitácora de Incidencias
+          </h2>
+          <p style={{ color: "#64748b", fontSize: "16px", lineHeight: 1.7, marginBottom: "48px", maxWidth: "700px" }}>
+            Documenta tu práctica docente y los incidentes de tus alumnos sin escribir una sola palabra: solo dicta por voz y PasaLista lo convierte en texto automáticamente.
+          </p>
+          <div className="grid-2">
+            <div style={{ background: "white", borderRadius: "16px", padding: "32px", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>📓</div>
+              <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", marginBottom: "12px" }}>Diario del Maestro</h3>
+              <p style={{ color: "#64748b", fontSize: "15px", lineHeight: 1.7, marginBottom: "16px" }}>
+                Registra las actividades, logros, retos y compromisos de cada sesión. Marca los componentes curriculares trabajados y autoevalúa tu clase, todo en una sola pantalla.
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {["Dictado por voz en cada campo", "Historial editable por grupo", "Exporta a PDF o Word con un clic"].map((item) => (
+                  <li key={item} style={{ padding: "6px 0", color: "#475569", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "#667eea", fontWeight: "700" }}>✓</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ background: "white", borderRadius: "16px", padding: "32px", boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+              <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", marginBottom: "12px" }}>Bitácora de Incidencias</h3>
+              <p style={{ color: "#64748b", fontSize: "15px", lineHeight: 1.7, marginBottom: "16px" }}>
+                Documenta incidentes por alumno y por grupo: agresiones, accidentes, cambios de comportamiento y más. Describe lo sucedido dictando por voz, sin perder tiempo escribiendo.
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {["Selecciona grupo y alumno con un clic", "Consulta el historial por grupo y por alumno", "Exporta a PDF o Word con un clic"].map((item) => (
+                  <li key={item} style={{ padding: "6px 0", color: "#475569", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "#667eea", fontWeight: "700" }}>✓</span> {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -299,7 +346,7 @@ export default function Home() {
             <div style={{ fontSize: "48px", fontWeight: "800", color: "#667eea", margin: "0 0 4px 0" }}>$49</div>
             <p style={{ color: "#64748b", marginBottom: "24px" }}>al mes</p>
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px 0" }}>
-              {["Grupos ilimitados", "Alumnos ilimitados", "Codigos QR", "Asistencia en tiempo real", "Exportar a Excel", "Gafetes QR para alumnos", "Soporte prioritario"].map((f) => (
+              {["Grupos ilimitados", "Alumnos ilimitados", "Codigos QR", "Asistencia en tiempo real", "Exportar a Excel", "Gafetes QR para alumnos", "Diario del Maestro con dictado por voz", "Bitácora de Incidencias con dictado por voz", "Exporta el Diario y la Bitácora a PDF y Word", "Soporte prioritario"].map((f) => (
                 <li key={f} style={{ padding: "8px 0", color: "#475569", fontSize: "15px", borderBottom: "1px solid #f1f5f9" }}>✅ {f}</li>
               ))}
             </ul>
