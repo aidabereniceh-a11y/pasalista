@@ -85,6 +85,7 @@ function CampoDictado({ label, value, onChange, rows = 3 }: any) {
           <button
             type="button"
             onClick={toggle}
+            className="no-print"
             style={{
               display: "flex", alignItems: "center", gap: "6px", border: "none", borderRadius: "20px",
               padding: "5px 12px", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: "white",
@@ -94,7 +95,7 @@ function CampoDictado({ label, value, onChange, rows = 3 }: any) {
             {grabando ? "⏹ Grabando…" : "🎤 Dictar"}
           </button>
         ) : (
-          <span style={{ fontSize: "11px", color: "#94a3b8" }}>Dictado no disponible en este navegador</span>
+          <span className="no-print" style={{ fontSize: "11px", color: "#94a3b8" }}>Dictado no disponible en este navegador</span>
         )}
       </div>
       <textarea
@@ -130,7 +131,13 @@ function Check2({ checked, onChange, label }: any) {
 function exportarWord(titulo: string, html: string) {
   const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
   <head><meta charset="utf-8"><title>${titulo}</title></head>
-  <body style="font-family:Calibri,Arial,sans-serif;">${html}</body></html>`;
+  <body style="font-family:Calibri,Arial,sans-serif; color:#1e293b; padding: 20px;">
+    <div style="border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px;">
+      <h1 style="color:#4f46e5; font-size:22px; margin:0;">${titulo}</h1>
+    </div>
+    ${html}
+    <p style="margin-top:30px; font-size:11px; color:#94a3b8;">Generado desde PasaLista</p>
+  </body></html>`;
   const blob = new Blob(["\ufeff", doc], { type: "application/msword" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -140,6 +147,33 @@ function exportarWord(titulo: string, html: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function campoWord(label: string, valor: string) {
+  return `<div style="margin-bottom:16px;">
+    <div style="font-size:12px; font-weight:bold; color:#6366f1; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${label}</div>
+    <div style="font-size:14px; line-height:1.5; background:#f8fafc; border-left:3px solid #c7d2fe; padding:10px 14px; border-radius:4px;">${valor || "—"}</div>
+  </div>`;
+}
+
+function datosWord(pares: [string, string][]) {
+  const celdas = pares.map(([label, valor]) =>
+    `<td style="padding:8px 14px; border:1px solid #e2e8f0; background:#eef2ff;">
+      <div style="font-size:11px; color:#4f46e5; font-weight:bold;">${label}</div>
+      <div style="font-size:13px;">${valor || "—"}</div>
+    </td>`
+  ).join("");
+  return `<table style="width:100%; border-collapse:collapse; margin-bottom:20px;"><tr>${celdas}</tr></table>`;
+}
+
+function listaWord(titulo: string, items: string[], color: string) {
+  const filas = items.length
+    ? items.map((i) => `<li style="margin-bottom:4px;">${i}</li>`).join("")
+    : `<li style="color:#94a3b8;">Ninguno marcado</li>`;
+  return `<div style="margin-bottom:20px;">
+    <div style="font-size:13px; font-weight:bold; color:${color}; margin-bottom:6px;">${titulo}</div>
+    <ul style="margin:0; padding-left:20px; font-size:13px;">${filas}</ul>
+  </div>`;
 }
 
 export default function DiarioDelMaestro() {
@@ -292,27 +326,26 @@ export default function DiarioDelMaestro() {
 
   const handleWord = () => {
     if (tab === "diario") {
-      const html = `
-        <h2>Diario del Maestro — ${fecha}</h2>
-        <p><b>Grupo:</b> ${grupo}</p>
-        <p><b>Componentes trabajados:</b> ${Object.keys(componentes).filter((k) => componentes[k]).join(", ") || "—"}</p>
-        <p><b>Actividades realizadas:</b> ${actividades || "—"}</p>
-        <p><b>Logros del día:</b> ${logros || "—"}</p>
-        <p><b>Retos u obstáculos:</b> ${retos || "—"}</p>
-        <p><b>Observaciones:</b> ${observaciones || "—"}</p>
-        <p><b>Compromisos para la próxima sesión:</b> ${compromisos || "—"}</p>
-        <p><b>Autoevaluación:</b> ${AUTOEVAL.filter((a) => autoeval[a]).join(", ") || "—"}</p>`;
+      const nombreGrupo = grupos.find((g) => String(g.id) === String(grupo))?.nombre || "—";
+      const html =
+        datosWord([["Fecha", fecha], ["Grupo", nombreGrupo]]) +
+        listaWord("Componentes curriculares trabajados", Object.keys(componentes).filter((k) => componentes[k]), "#15803d") +
+        campoWord("Actividades realizadas", actividades) +
+        campoWord("Logros del día", logros) +
+        campoWord("Retos u obstáculos", retos) +
+        campoWord("Observaciones sobre el grupo", observaciones) +
+        campoWord("Compromisos para la próxima sesión", compromisos) +
+        listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309");
       exportarWord("Diario del Maestro " + fecha, html);
     } else {
-      const html = `
-        <h2>Bitácora de incidencias — ${incFecha}</h2>
-        <p><b>Grupo:</b> ${incGrupo}</p>
-        <p><b>Alumno:</b> ${incAlumno || "—"}</p>
-        <p><b>Situación:</b> ${SITUACIONES.filter((s) => incSituaciones[s]).join(", ") || "—"}</p>
-        <p><b>Descripción:</b> ${incDescripcion || "—"}</p>
-        <p><b>Acción tomada:</b> ${incAccion || "—"}</p>
-        <p><b>Se notificó a los padres:</b> ${incNotifico ? "Sí" : "No"}</p>`;
-      exportarWord("Bitácora " + incFecha, html);
+      const nombreGrupo = grupos.find((g) => String(g.id) === String(incGrupo))?.nombre || "—";
+      const html =
+        datosWord([["Fecha", incFecha], ["Grupo", nombreGrupo], ["Alumno", incAlumno || "—"]]) +
+        listaWord("Situación", SITUACIONES.filter((s) => incSituaciones[s]), "#b45309") +
+        campoWord("Descripción del incidente", incDescripcion) +
+        campoWord("Acción tomada", incAccion) +
+        datosWord([["Se notificó a los padres", incNotifico ? "Sí" : "No"]]);
+      exportarWord("Bitácora de Incidencias " + incFecha, html);
     }
   };
 
@@ -369,8 +402,8 @@ export default function DiarioDelMaestro() {
         </div>
 
         <div className="no-print" style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-          {tabBtn("diario", "📓 Diario del Maestro")}
-          {tabBtn("incidencias", "⚠️ Bitácora de incidencias")}
+          {tabBtn("diario", "📓 Diario")}
+          {tabBtn("incidencias", "⚠️ Bitácora")}
           <button
             onClick={abrirHistorial}
             style={{ padding: "10px 20px", borderRadius: "10px", border: "1px solid #c7d2fe", fontWeight: 700, fontSize: "14px", cursor: "pointer", background: mostrarHistorial ? "#eef2ff" : "#fff", color: "#4f46e5" }}
