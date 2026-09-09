@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import * as XLSX from "xlsx";
 
+const ESTATUS = [
+  { valor: "Presente", label: "Presente", color: "#22c55e" },
+  { valor: "Ausente", label: "Ausente", color: "#ef4444" },
+  { valor: "Retardo", label: "Retardo", color: "#eab308" },
+  { valor: "Justificado", label: "Justificado", color: "#3b82f6" },
+];
+
 export default function AsistenciaPage() {
   const params = useParams();
   const id = params.id as string;
@@ -12,6 +19,7 @@ export default function AsistenciaPage() {
   const [asistencias, setAsistencias] = useState<any[]>([]);
   const [hora, setHora] = useState(new Date());
   const [noAutorizado, setNoAutorizado] = useState(false);
+  const [marcando, setMarcando] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -39,17 +47,40 @@ export default function AsistenciaPage() {
     setAsistencias(resultado.asistencias || []);
   };
 
-  const presentes = Array.from(new Set(asistencias.filter((a) => a.accion === "Presente").map((a) => a.alumno_id)));
+  const marcarEstatus = async (alumnoId: number, accion: string) => {
+    if (marcando) return;
+    const data = localStorage.getItem("maestro");
+    if (!data) return;
+    const maestro = JSON.parse(data);
+
+    setMarcando(alumnoId);
+    await fetch("/api/asistencia-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: maestro.id, accion }),
+    });
+    await cargarDatos();
+    setMarcando(null);
+  };
+
+  const valoresEstatus = ESTATUS.map((e) => e.valor);
+  const estadoManual = new Map<number, string>();
+  [...asistencias]
+    .filter((a) => valoresEstatus.includes(a.accion))
+    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+    .forEach((a) => estadoManual.set(a.alumno_id, a.accion));
+
+  const presentes = alumnos.filter((a) => estadoManual.get(a.id) === "Presente").map((a) => a.id);
+  const retardos = alumnos.filter((a) => estadoManual.get(a.id) === "Retardo").map((a) => a.id);
+  const justificados = alumnos.filter((a) => estadoManual.get(a.id) === "Justificado").map((a) => a.id);
+  const ausentes = alumnos.filter((a) => !presentes.includes(a.id) && !retardos.includes(a.id) && !justificados.includes(a.id)).map((a) => a.id);
 
   const estadoBano = new Map<number, boolean>();
   asistencias.forEach((a) => {
     if (a.accion === "Salida al banio") estadoBano.set(a.alumno_id, true);
     if (a.accion === "Regreso del banio") estadoBano.set(a.alumno_id, false);
   });
-
   const enBano = Array.from(estadoBano.entries()).filter(([_, v]) => v).map(([id]) => id);
-
-  const ausentes = alumnos.filter((a) => !presentes.includes(a.id)).map((a) => a.id);
 
   const exportarExcel = () => {
     const filas = asistencias.map((a) => ({
@@ -101,30 +132,84 @@ export default function AsistenciaPage() {
           <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Volver</a>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px", marginBottom: "32px" }}>
           <div style={{ background: "linear-gradient(135deg, rgba(21,128,61,0.35), rgba(20,83,45,0.2))", border: "1px solid rgba(34,197,94,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>✅</div>
             <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>Presentes</div>
-            <div style={{ fontSize: "48px", fontWeight: "800", color: "#4ade80", lineHeight: 1 }}>{presentes.length}</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#4ade80", lineHeight: 1 }}>{presentes.length}</div>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #22c55e, #86efac)" }} />
           </div>
           <div style={{ background: "linear-gradient(135deg, rgba(180,83,9,0.35), rgba(146,64,14,0.2))", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>🚻</div>
             <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>En bano</div>
-            <div style={{ fontSize: "48px", fontWeight: "800", color: "#fbbf24", lineHeight: 1 }}>{enBano.length}</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#fbbf24", lineHeight: 1 }}>{enBano.length}</div>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #f59e0b, #fde68a)" }} />
+          </div>
+          <div style={{ background: "linear-gradient(135deg, rgba(161,98,7,0.35), rgba(133,77,14,0.2))", border: "1px solid rgba(234,179,8,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
+            <div style={{ fontSize: "22px", marginBottom: "8px" }}>⏰</div>
+            <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>Retardos</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#facc15", lineHeight: 1 }}>{retardos.length}</div>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #eab308, #fde047)" }} />
+          </div>
+          <div style={{ background: "linear-gradient(135deg, rgba(29,78,216,0.35), rgba(30,58,138,0.2))", border: "1px solid rgba(59,130,246,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
+            <div style={{ fontSize: "22px", marginBottom: "8px" }}>📝</div>
+            <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>Justificados</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#60a5fa", lineHeight: 1 }}>{justificados.length}</div>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #3b82f6, #93c5fd)" }} />
           </div>
           <div style={{ background: "linear-gradient(135deg, rgba(185,28,28,0.35), rgba(153,27,27,0.2))",border: "1px solid rgba(239,68,68,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>❌</div>
             <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>Ausentes</div>
-            <div style={{ fontSize: "48px", fontWeight: "800", color: "#f87171", lineHeight: 1 }}>{ausentes.length}</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#f87171", lineHeight: 1 }}>{ausentes.length}</div>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #ef4444, #fca5a5)" }} />
           </div>
           <div style={{ background: "linear-gradient(135deg, rgba(51,65,85,0.5), rgba(30,41,59,0.3))", border: "1px solid rgba(100,116,139,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>🎓</div>
             <div style={{ fontSize: "12px", opacity: 0.65, textTransform: "uppercase", letterSpacing: "1px" }}>Total</div>
-            <div style={{ fontSize: "48px", fontWeight: "800", color: "#94a3b8", lineHeight: 1 }}>{alumnos.length}</div>
+            <div style={{ fontSize: "42px", fontWeight: "800", color: "#94a3b8", lineHeight: 1 }}>{alumnos.length}</div>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #64748b, #94a3b8)" }} />
+          </div>
+        </div>
+
+        <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "20px", overflow: "hidden", marginBottom: "24px" }}>
+          <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <span style={{ fontSize: "14px", fontWeight: "700", color: "#e2e8f0" }}>Registrar asistencia</span>
+          </div>
+          <div style={{ padding: "8px" }}>
+            {alumnos.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px", color: "#475569" }}>No hay alumnos en este grupo</div>
+            ) : alumnos.map((a) => {
+              const estatusActual = estadoManual.get(a.id);
+              return (
+                <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <span style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: "600" }}>{a.nombre}</span>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {ESTATUS.map((e) => {
+                      const activo = estatusActual === e.valor;
+                      return (
+                        <button
+                          key={e.valor}
+                          onClick={() => marcarEstatus(a.id, e.valor)}
+                          disabled={marcando === a.id}
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: "10px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: marcando === a.id ? "not-allowed" : "pointer",
+                            border: `1px solid ${e.color}`,
+                            background: activo ? e.color : "transparent",
+                            color: activo ? "#0a0f1e" : e.color,
+                          }}
+                        >
+                          {e.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
