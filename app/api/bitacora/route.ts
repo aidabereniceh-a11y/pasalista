@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const body = await req.json();
-  const { id, maestro_id: maestroId, grupo_id, alumno_nombre, fecha, situaciones, descripcion, accion, notifico_padres } = body;
+  const { id, maestro_id: maestroId, grupo_id, alumno_nombre, fecha, situaciones, descripcion, accion, notifico_padres, firmas } = body;
 
   if (!id || !maestroId) {
     return NextResponse.json({ error: "Falta id o maestro_id" }, { status: 400 });
