@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { maestro_id: maestroId, grupo_id, alumno_nombre, fecha, situaciones, descripcion, accion, notifico_padres } = body;
+  const { maestro_id: maestroId, grupo_id, alumno_nombre, fecha, situaciones, descripcion, accion, notifico_padres, firmas } = body;
 
   if (!maestroId) {
     return NextResponse.json({ error: "Falta maestro_id" }, { status: 401 });
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       descripcion,
       accion,
       notifico_padres: !!notifico_padres,
+      firmas,
     })
     .select()
     .single();
@@ -53,6 +54,7 @@ export async function PUT(req: NextRequest) {
       descripcion,
       accion,
       notifico_padres: !!notifico_padres,
+      firmas,
     })
     .eq("id", id)
     .eq("maestro_id", maestroId)

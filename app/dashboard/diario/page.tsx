@@ -190,6 +190,8 @@ export default function DiarioDelMaestro() {
 
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [grupo, setGrupo] = useState("");
+  const [nombreDocente, setNombreDocente] = useState("");
+  const [firmaDocente, setFirmaDocente] = useState("");
   const [componentes, setComponentes] = useState<any>({});
   const [actividades, setActividades] = useState("");
   const [logros, setLogros] = useState("");
@@ -205,6 +207,7 @@ export default function DiarioDelMaestro() {
   const [incDescripcion, setIncDescripcion] = useState("");
   const [incAccion, setIncAccion] = useState("");
   const [incNotifico, setIncNotifico] = useState(false);
+  const [firmas, setFirmas] = useState<any>({});
 
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -246,10 +249,10 @@ export default function DiarioDelMaestro() {
   const limpiarFormulario = () => {
     setEditandoId(null);
     setFecha(new Date().toISOString().slice(0, 10));
-    setGrupo(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
+    setGrupo(""); setNombreDocente(""); setFirmaDocente(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
     setObservaciones(""); setCompromisos(""); setAutoeval({});
     setIncFecha(new Date().toISOString().slice(0, 10));
-    setIncGrupo(""); setIncAlumno(""); setIncSituaciones({}); setIncDescripcion(""); setIncAccion(""); setIncNotifico(false);
+    setIncGrupo(""); setIncAlumno(""); setIncSituaciones({}); setIncDescripcion(""); setIncAccion(""); setIncNotifico(false); setFirmas({});
   };
 
   const cargarHistorial = async () => {
@@ -277,6 +280,8 @@ export default function DiarioDelMaestro() {
     setEditandoId(registro.id);
     setFecha(registro.fecha || new Date().toISOString().slice(0, 10));
     setGrupo(registro.grupo_id || "");
+    setNombreDocente(registro.nombre_docente || "");
+    setFirmaDocente(registro.firma_docente || "");
     setComponentes(registro.componentes || {});
     setActividades(registro.actividades || "");
     setLogros(registro.logros || "");
@@ -296,6 +301,7 @@ export default function DiarioDelMaestro() {
     setIncDescripcion(registro.descripcion || "");
     setIncAccion(registro.accion || "");
     setIncNotifico(!!registro.notifico_padres);
+    setFirmas(registro.firmas || {});
     setMostrarHistorial(false);
   };
 
@@ -310,8 +316,8 @@ export default function DiarioDelMaestro() {
     const metodo = editandoId ? "PUT" : "POST";
     const payload =
       tab === "diario"
-        ? { id: editandoId, maestro_id: maestro.id, grupo_id: grupo || null, fecha, componentes, actividades, logros, retos, observaciones, compromisos, autoevaluacion: autoeval }
-        : { id: editandoId, maestro_id: maestro.id, grupo_id: incGrupo || null, alumno_nombre: incAlumno, fecha: incFecha, situaciones: incSituaciones, descripcion: incDescripcion, accion: incAccion, notifico_padres: incNotifico };
+        ? { id: editandoId, maestro_id: maestro.id, grupo_id: grupo || null, fecha, nombre_docente: nombreDocente, firma_docente: firmaDocente, componentes, actividades, logros, retos, observaciones, compromisos, autoevaluacion: autoeval }
+        : { id: editandoId, maestro_id: maestro.id, grupo_id: incGrupo || null, alumno_nombre: incAlumno, fecha: incFecha, situaciones: incSituaciones, descripcion: incDescripcion, accion: incAccion, notifico_padres: incNotifico, firmas };
 
     try {
       const res = await fetch(endpoint, {
@@ -338,14 +344,15 @@ export default function DiarioDelMaestro() {
     if (tab === "diario") {
       const nombreGrupo = grupos.find((g) => String(g.id) === String(grupo))?.nombre || "—";
       const html =
-        datosWord([["Fecha", fecha], ["Grupo", nombreGrupo]]) +
+        datosWord([["Fecha", fecha], ["Grupo", nombreGrupo], ["Docente", nombreDocente || "—"]]) +
         listaWord("Componentes curriculares trabajados", Object.keys(componentes).filter((k) => componentes[k]), "#15803d") +
         campoWord("Actividades realizadas", actividades) +
         campoWord("Logros del día", logros) +
         campoWord("Retos u obstáculos", retos) +
         campoWord("Observaciones sobre el grupo", observaciones) +
         campoWord("Compromisos para la próxima sesión", compromisos) +
-        listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309");
+        listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309") +
+        datosWord([["Firma del Maestro(a)", firmaDocente || "—"]]);
       exportarWord("Diario del Maestro " + fecha, html);
     } else {
       const nombreGrupo = grupos.find((g) => String(g.id) === String(incGrupo))?.nombre || "—";
@@ -354,7 +361,14 @@ export default function DiarioDelMaestro() {
         listaWord("Situación", SITUACIONES.filter((s) => incSituaciones[s]), "#b45309") +
         campoWord("Descripción del incidente", incDescripcion) +
         campoWord("Acción tomada", incAccion) +
-        datosWord([["Se notificó a los padres", incNotifico ? "Sí" : "No"]]);
+        datosWord([["Se notificó a los padres", incNotifico ? "Sí" : "No"]]) +
+        datosWord([
+          ["Firma Alumno", firmas.alumno || "—"],
+          ["Firma Director(a)", firmas.director || "—"],
+          ["Firma Padre o tutor", firmas.padre || "—"],
+          ["Firma Otros", firmas.otros || "—"],
+          ["Firma Maestro(a)", firmas.maestro || "—"],
+        ]);
       exportarWord("Bitácora de Incidencias " + incFecha, html);
     }
   };
@@ -518,6 +532,13 @@ export default function DiarioDelMaestro() {
               </div>
 
               <div style={{ marginBottom: "20px" }}>
+                <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Nombre del Docente</label>
+                <input
+                  value={nombreDocente}
+                  onChange={(e) => setNombreDocente(e.target.value)}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
                 <p style={{ fontWeight: 700, fontSize: "14px", color: "#15803d", marginBottom: "8px" }}>
                   Componentes curriculares trabajados hoy
                 </p>
@@ -540,6 +561,18 @@ export default function DiarioDelMaestro() {
                   {AUTOEVAL.map((a) => (
                     <Check2 key={a} label={a} checked={!!autoeval[a]} onChange={(v: boolean) => setAutoeval({ ...autoeval, [a]: v })} />
                   ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: "20px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firma</p>
+                <div>
+                  <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Maestro(a)</label>
+                  <input
+                    value={firmaDocente}
+                    onChange={(e) => setFirmaDocente(e.target.value)}
+                    style={{ ...inputStyle, width: "100%", maxWidth: "320px" }}
+                  />
                 </div>
               </div>
             </>
@@ -594,6 +627,28 @@ export default function DiarioDelMaestro() {
               <CampoDictado label="Acción tomada" value={incAccion} onChange={setIncAccion} rows={2} />
 
               <Check2 checked={incNotifico} onChange={setIncNotifico} label="Se notificó a los padres o tutores" />
+
+              <div style={{ marginTop: "20px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firmas</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  {[
+                    ["alumno", "Alumno"],
+                    ["director", "Director(a)"],
+                    ["padre", "Padre o tutor"],
+                    ["otros", "Otros"],
+                    ["maestro", "Maestro(a)"],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>{label}</label>
+                      <input
+                        value={firmas[key] || ""}
+                        onChange={(e) => setFirmas({ ...firmas, [key]: e.target.value })}
+                        style={{ ...inputStyle, width: "100%" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           )}
         </div>
