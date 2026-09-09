@@ -539,6 +539,8 @@ export default function DiarioDelMaestro() {
                   style={{ ...inputStyle, width: "100%" }}
                 />
               </div>
+
+              <div style={{ marginBottom: "20px" }}>
                 <p style={{ fontWeight: 700, fontSize: "14px", color: "#15803d", marginBottom: "8px" }}>
                   Componentes curriculares trabajados hoy
                 </p>
