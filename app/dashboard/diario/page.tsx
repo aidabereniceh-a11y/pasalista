@@ -184,7 +184,9 @@ export default function DiarioDelMaestro() {
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
 
   const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [filtroAlumno, setFiltroAlumno] = useState("");
+  const [historialGrupo, setHistorialGrupo] = useState("");
+  const [historialAlumno, setHistorialAlumno] = useState("");
+  const [alumnosHistorial, setAlumnosHistorial] = useState<any[]>([]);
 
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [grupo, setGrupo] = useState("");
@@ -233,6 +235,14 @@ export default function DiarioDelMaestro() {
       .then((data) => setAlumnosDelGrupo((data.alumnos || []).filter((a: any) => a.activo !== false)));
   }, [incGrupo]);
 
+  useEffect(() => {
+    const maestro = getMaestro();
+    if (!maestro?.id || !historialGrupo) { setAlumnosHistorial([]); return; }
+    fetch(`/api/alumnos?grupoId=${historialGrupo}&maestroId=${maestro.id}`)
+      .then((res) => res.json())
+      .then((data) => setAlumnosHistorial((data.alumnos || []).filter((a: any) => a.activo !== false)));
+  }, [historialGrupo]);
+
   const limpiarFormulario = () => {
     setEditandoId(null);
     setFecha(new Date().toISOString().slice(0, 10));
@@ -260,7 +270,7 @@ export default function DiarioDelMaestro() {
 
   const abrirHistorial = () => {
     setMostrarHistorial(!mostrarHistorial);
-    if (!mostrarHistorial) cargarHistorial();
+    if (!mostrarHistorial) { setHistorialGrupo(""); setHistorialAlumno(""); cargarHistorial(); }
   };
 
   const editarEntradaDiario = (registro: any) => {
@@ -423,20 +433,45 @@ export default function DiarioDelMaestro() {
 
         {mostrarHistorial && (
           <div className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px", marginBottom: "20px" }}>
-            {tab === "incidencias" && (
-              <input
-                value={filtroAlumno}
-                onChange={(e) => setFiltroAlumno(e.target.value)}
-                placeholder="Buscar por nombre del alumno…"
-                style={{ ...inputStyle, width: "100%", marginBottom: "12px" }}
-              />
-            )}
-            {cargandoHistorial ? (
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: "160px" }}>
+                <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>¿Qué grupo quieres consultar?</label>
+                <select
+                  value={historialGrupo}
+                  onChange={(e) => { setHistorialGrupo(e.target.value); setHistorialAlumno(""); }}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  <option value="">Selecciona un grupo</option>
+                  {grupos.map((g) => (
+                    <option key={g.id} value={g.id}>{g.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              {tab === "incidencias" && historialGrupo && (
+                <div style={{ flex: 1, minWidth: "160px" }}>
+                  <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>Alumno</label>
+                  <select
+                    value={historialAlumno}
+                    onChange={(e) => setHistorialAlumno(e.target.value)}
+                    style={{ ...inputStyle, width: "100%" }}
+                  >
+                    <option value="">Todos los alumnos</option>
+                    {alumnosHistorial.map((a) => (
+                      <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {!historialGrupo ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Selecciona un grupo para ver su historial.</p>
+            ) : cargandoHistorial ? (
               <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Cargando…</p>
             ) : tab === "diario" ? (
-              historialDiario.length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay entradas guardadas todavía.</p>
-              ) : historialDiario.map((r) => (
+              historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo)).length === 0 ? (
+                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay entradas guardadas para ese grupo.</p>
+              ) : historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo)).map((r) => (
                 <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha}</div>
@@ -447,11 +482,9 @@ export default function DiarioDelMaestro() {
                   </button>
                 </div>
               ))
-            ) : historialBitacora.filter((r) => (r.alumno_nombre || "").toLowerCase().includes(filtroAlumno.toLowerCase())).length === 0 ? (
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
-                {filtroAlumno ? "No hay incidencias para ese alumno." : "No hay entradas guardadas todavía."}
-              </p>
-            ) : historialBitacora.filter((r) => (r.alumno_nombre || "").toLowerCase().includes(filtroAlumno.toLowerCase())).map((r) => (
+            ) : historialBitacora.filter((r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)).length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay incidencias registradas para esa selección.</p>
+            ) : historialBitacora.filter((r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)).map((r) => (
               <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha} {r.alumno_nombre ? "· " + r.alumno_nombre : ""}</div>
