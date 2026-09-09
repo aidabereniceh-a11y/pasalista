@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     autoevaluacion,
     nombre_docente,
     firma_docente,
+    firma_director,
   } = body;
 
   if (!maestroId) {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
       autoevaluacion,
       nombre_docente,
       firma_docente,
+      firma_director,
     })
     .select()
     .single();
@@ -68,6 +70,7 @@ export async function PUT(req: NextRequest) {
     autoevaluacion,
     nombre_docente,
     firma_docente,
+    firma_director,
   } = body;
 
   if (!id || !maestroId) {
@@ -88,6 +91,7 @@ export async function PUT(req: NextRequest) {
       autoevaluacion,
       nombre_docente,
       firma_docente,
+      firma_director,
     })
     .eq("id", id)
     .eq("maestro_id", maestroId)

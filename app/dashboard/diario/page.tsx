@@ -192,6 +192,7 @@ export default function DiarioDelMaestro() {
   const [grupo, setGrupo] = useState("");
   const [nombreDocente, setNombreDocente] = useState("");
   const [firmaDocente, setFirmaDocente] = useState("");
+  const [firmaDirector, setFirmaDirector] = useState("");
   const [componentes, setComponentes] = useState<any>({});
   const [actividades, setActividades] = useState("");
   const [logros, setLogros] = useState("");
@@ -249,7 +250,7 @@ export default function DiarioDelMaestro() {
   const limpiarFormulario = () => {
     setEditandoId(null);
     setFecha(new Date().toISOString().slice(0, 10));
-    setGrupo(""); setNombreDocente(""); setFirmaDocente(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
+    setGrupo(""); setNombreDocente(""); setFirmaDocente(""); setFirmaDirector(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
     setObservaciones(""); setCompromisos(""); setAutoeval({});
     setIncFecha(new Date().toISOString().slice(0, 10));
     setIncGrupo(""); setIncAlumno(""); setIncSituaciones({}); setIncDescripcion(""); setIncAccion(""); setIncNotifico(false); setFirmas({});
@@ -282,6 +283,7 @@ export default function DiarioDelMaestro() {
     setGrupo(registro.grupo_id || "");
     setNombreDocente(registro.nombre_docente || "");
     setFirmaDocente(registro.firma_docente || "");
+    setFirmaDirector(registro.firma_director || "");
     setComponentes(registro.componentes || {});
     setActividades(registro.actividades || "");
     setLogros(registro.logros || "");
@@ -316,7 +318,7 @@ export default function DiarioDelMaestro() {
     const metodo = editandoId ? "PUT" : "POST";
     const payload =
       tab === "diario"
-        ? { id: editandoId, maestro_id: maestro.id, grupo_id: grupo || null, fecha, nombre_docente: nombreDocente, firma_docente: firmaDocente, componentes, actividades, logros, retos, observaciones, compromisos, autoevaluacion: autoeval }
+        ? { id: editandoId, maestro_id: maestro.id, grupo_id: grupo || null, fecha, nombre_docente: nombreDocente, firma_docente: firmaDocente, firma_director: firmaDirector, componentes, actividades, logros, retos, observaciones, compromisos, autoevaluacion: autoeval }
         : { id: editandoId, maestro_id: maestro.id, grupo_id: incGrupo || null, alumno_nombre: incAlumno, fecha: incFecha, situaciones: incSituaciones, descripcion: incDescripcion, accion: incAccion, notifico_padres: incNotifico, firmas };
 
     try {
@@ -352,7 +354,7 @@ export default function DiarioDelMaestro() {
         campoWord("Observaciones sobre el grupo", observaciones) +
         campoWord("Compromisos para la próxima sesión", compromisos) +
         listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309") +
-        datosWord([["Firma del Maestro(a)", firmaDocente || "—"]]);
+        datosWord([["Firma del Maestro(a)", firmaDocente || "—"], ["Firma del Director(a)", firmaDirector || "—"]]);
       exportarWord("Diario del Maestro " + fecha, html);
     } else {
       const nombreGrupo = grupos.find((g) => String(g.id) === String(incGrupo))?.nombre || "—";
@@ -567,14 +569,24 @@ export default function DiarioDelMaestro() {
               </div>
 
               <div style={{ marginTop: "20px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firma</p>
-                <div>
-                  <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Maestro(a)</label>
-                  <input
-                    value={firmaDocente}
-                    onChange={(e) => setFirmaDocente(e.target.value)}
-                    style={{ ...inputStyle, width: "100%", maxWidth: "320px" }}
-                  />
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firmas</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Maestro(a)</label>
+                    <input
+                      value={firmaDocente}
+                      onChange={(e) => setFirmaDocente(e.target.value)}
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Director(a)</label>
+                    <input
+                      value={firmaDirector}
+                      onChange={(e) => setFirmaDirector(e.target.value)}
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </div>
                 </div>
               </div>
             </>
