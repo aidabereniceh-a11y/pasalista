@@ -395,7 +395,7 @@ export default function DiarioDelMaestro() {
       <style>{`@media print { .no-print { display: none !important; } }`}</style>
       <div style={{ maxWidth: "700px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0 }}>Diario y bitácora</h1>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0 }}>{tab === "diario" ? "Diario" : "Bitácora"}</h1>
           <a href="/dashboard" style={{ background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
             Volver
           </a>
