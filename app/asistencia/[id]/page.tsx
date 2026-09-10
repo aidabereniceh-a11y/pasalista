@@ -63,6 +63,26 @@ export default function AsistenciaPage() {
     setMarcando(null);
   };
 
+  const marcarBanio = async (alumnoId: number, accion: string) => {
+    if (marcando) return;
+    const data = localStorage.getItem("maestro");
+    if (!data) return;
+    const maestro = JSON.parse(data);
+
+    setMarcando(alumnoId);
+    const res = await fetch("/api/banio-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: maestro.id, accion }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "No se pudo registrar");
+    }
+    await cargarDatos();
+    setMarcando(null);
+  };
+
   const valoresEstatus = ESTATUS.map((e) => e.valor);
   const estadoManual = new Map<number, string>();
   [...asistencias]
@@ -222,14 +242,45 @@ export default function AsistenciaPage() {
             <div style={{ padding: "12px", maxHeight: "300px", overflowY: "auto" }}>
               {presentes.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "20px", color: "#475569" }}>Sin registros</div>
-              ) : presentes.map((alumnoId) => (
-                <div key={alumnoId} style={{ display: "flex", alignItems: "center", gap: "10px", padding:"8px 12px", borderRadius: "10px" }}>
-                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "rgba(34,197,94,0.15)", color: "#4ade80", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700" }}>
-                    {getNombre(alumnoId).slice(0, 2)}
+              ) : presentes.map((alumnoId) => {
+                const fueraDelSalon = enBano.includes(alumnoId);
+                return (
+                  <div key={alumnoId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding:"8px 12px", borderRadius: "10px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "rgba(34,197,94,0.15)", color: "#4ade80", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700" }}>
+                        {getNombre(alumnoId).slice(0, 2)}
+                      </div>
+                      <span style={{ fontSize: "12px", color: "#cbd5e1" }}>{getNombre(alumnoId)}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => marcarBanio(alumnoId, "Salida al banio")}
+                        disabled={marcando === alumnoId || fueraDelSalon}
+                        style={{
+                          padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "700",
+                          border: "1px solid #f59e0b", background: fueraDelSalon ? "rgba(245,158,11,0.1)" : "transparent",
+                          color: "#fbbf24", cursor: fueraDelSalon || marcando === alumnoId ? "not-allowed" : "pointer",
+                          opacity: fueraDelSalon ? 0.4 : 1,
+                        }}
+                      >
+                        🚻 Salida al bano
+                      </button>
+                      <button
+                        onClick={() => marcarBanio(alumnoId, "Regreso del banio")}
+                        disabled={marcando === alumnoId || !fueraDelSalon}
+                        style={{
+                          padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "700",
+                          border: "1px solid #3b82f6", background: fueraDelSalon ? "#3b82f6" : "transparent",
+                          color: fueraDelSalon ? "#0a0f1e" : "#60a5fa", cursor: !fueraDelSalon || marcando === alumnoId ? "not-allowed" : "pointer",
+                          opacity: !fueraDelSalon ? 0.4 : 1,
+                        }}
+                      >
+                        🔙 Regreso
+                      </button>
+                    </div>
                   </div>
-                  <span style={{ fontSize: "12px", color: "#cbd5e1" }}>{getNombre(alumnoId)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
