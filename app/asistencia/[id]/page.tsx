@@ -149,6 +149,7 @@ export default function AsistenciaPage() {
             <p style={{ color: "#94a3b8", fontSize: "13px", margin: "4px 0 0 0" }}>Grupo {grupo.nombre} ·{today} · {timeStr}</p>
           </div>
           <button onClick={exportarExcel} style={{ background: "linear-gradient(135deg, #166534, #15803d)", color: "white", border: "1px solid rgba(34,197,94,0.3)", padding: "10px 20px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer", marginRight: "10px" }}>Exportar Excel</button>
+          <a href={`/asistencia/${id}/reporte`} style={{ background: "rgba(129,140,248,0.2)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.3)", padding: "10px 20px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block", marginRight: "10px" }}>📊 Ver reporte</a>
           <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Volver</a>
         </div>
 
