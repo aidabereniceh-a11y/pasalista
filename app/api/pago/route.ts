@@ -1,12 +1,27 @@
 ﻿export const runtime = "edge";
 
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+
 export async function POST(request: Request) {
   const { maestroId, maestroEmail } = await request.json();
+
+  // Buscamos el nombre completo del maestro para separar nombre y apellido
+  const { data: maestro } = await supabaseAdmin
+    .from("maestros")
+    .select("nombre")
+    .eq("id", maestroId)
+    .single();
+
+  const nombreCompleto = (maestro?.nombre || "").trim();
+  const partes = nombreCompleto.split(/\s+/);
+  const firstName = partes[0] || "Maestro";
+  const lastName = partes.slice(1).join(" ") || "Sin apellido";
 
   const preference = {
     items: [
       {
         title: "Asistencia QR Escolar - Plan Premium (1 mes)",
+        description: "Suscripcion mensual al Plan Premium de PasaLista: grupos ilimitados, gafetes QR, Diario del Maestro y Bitacora de Incidencias.",
         quantity: 1,
         unit_price: 49,
         currency_id: "MXN",
@@ -14,6 +29,8 @@ export async function POST(request: Request) {
     ],
     payer: {
       email: maestroEmail,
+      first_name: firstName,
+      last_name: lastName,
     },
     back_urls: {
       success: "https://pasalista.mx/pago/exitoso?maestro=" + maestroId,
