@@ -1,6 +1,6 @@
 ﻿"use client";
 export const runtime = "edge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
 export default function CheckIn() {
@@ -9,19 +9,40 @@ export default function CheckIn() {
   const alumnoNombre = decodeURIComponent(params.id as string);
   const grupoId = searchParams.get("grupo");
 
+  const [autorizado, setAutorizado] = useState<boolean | null>(null);
+  const [maestroId, setMaestroId] = useState<number | null>(null);
   const [mensaje, setMensaje] = useState("");
   const [color, setColor] = useState("");
   const [cargando, setCargando] = useState(false);
 
+  useEffect(() => {
+    const data = localStorage.getItem("maestro");
+    if (!data) {
+      setAutorizado(false);
+      return;
+    }
+    try {
+      const maestro = JSON.parse(data);
+      if (!maestro?.id) {
+        setAutorizado(false);
+        return;
+      }
+      setMaestroId(maestro.id);
+      setAutorizado(true);
+    } catch {
+      setAutorizado(false);
+    }
+  }, []);
+
   const guardar = async (accion: string) => {
-    if (cargando) return;
+    if (cargando || !maestroId) return;
     setCargando(true);
     setMensaje("");
 
     const res = await fetch("/api/checkin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alumnoNombre, grupoId, accion }),
+      body: JSON.stringify({ alumnoNombre, grupoId, accion, maestroId }),
     });
     const data = await res.json();
 
@@ -41,6 +62,47 @@ export default function CheckIn() {
     setCargando(false);
   };
 
+  // Mientras se revisa si hay sesion de maestro en este dispositivo
+  if (autorizado === null) {
+    return (
+      <main style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "Arial, sans-serif", color: "white",
+      }}>
+        <p>Cargando...</p>
+      </main>
+    );
+  }
+
+  // Este dispositivo no tiene sesion de maestro: no se muestra nombre ni botones
+  if (!autorizado) {
+    return (
+      <main style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "Arial, sans-serif", padding: "20px",
+      }}>
+        <div style={{
+          background: "white", borderRadius: "24px", padding: "40px 32px",
+          width: "100%", maxWidth: "380px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔒</div>
+          <h1 style={{ margin: "0 0 12px 0", fontSize: "18px", color: "#1e293b", fontWeight: "700" }}>
+            Codigo de asistencia escolar
+          </h1>
+          <p style={{ margin: 0, fontSize: "14px", color: "#64748b", lineHeight: 1.5 }}>
+            Este codigo debe ser escaneado por tu maestro para registrar tu asistencia.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Este dispositivo SI tiene sesion de maestro: funciona igual que siempre
   return (
     <main style={{
       minHeight: "100vh",
