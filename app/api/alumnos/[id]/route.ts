@@ -1,6 +1,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { grupoEstaBloqueado } from "../../../../lib/planLimits";
 
 export async function DELETE(
   request: Request,
@@ -32,6 +33,14 @@ export async function DELETE(
 
   if (!grupo || String(grupo.maestro_id) !== String(maestroId)) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // Plan gratis con mas de 1 grupo: solo el mas antiguo puede dar de baja alumnos
+  if (await grupoEstaBloqueado(grupo.id, maestroId)) {
+    return Response.json(
+      { error: "Este grupo esta bloqueado. Actualiza a Premium para hacer cambios." },
+      { status: 403 }
+    );
   }
 
   // Dar de baja (no se borra el registro, para conservar el historial de asistencia)

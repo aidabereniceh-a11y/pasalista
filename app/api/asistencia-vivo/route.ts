@@ -1,6 +1,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { grupoEstaBloqueado } from "../../../lib/planLimits";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
   }
 
+  const bloqueado = await grupoEstaBloqueado(grupoId, maestroId);
+
     const { data: alumnos } = await supabaseAdmin
     .from("alumnos")
     .select("*")
@@ -38,6 +41,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     grupo,
+    bloqueado,
     alumnos: alumnos || [],
     asistencias: asistencias || [],
   });

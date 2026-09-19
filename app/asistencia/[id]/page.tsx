@@ -15,6 +15,7 @@ export default function AsistenciaPage() {
   const params = useParams();
   const id = params.id as string;
   const [grupo, setGrupo] = useState<any>(null);
+  const [bloqueado, setBloqueado] = useState(false);
   const [alumnos, setAlumnos] = useState<any[]>([]);
   const [asistencias, setAsistencias] = useState<any[]>([]);
   const [hora, setHora] = useState(new Date());
@@ -43,12 +44,13 @@ export default function AsistenciaPage() {
     }
     const resultado = await res.json();
     setGrupo(resultado.grupo);
+    setBloqueado(!!resultado.bloqueado);
     setAlumnos(resultado.alumnos || []);
     setAsistencias(resultado.asistencias || []);
   };
 
   const marcarEstatus = async (alumnoId: number, accion: string) => {
-    if (marcando) return;
+    if (marcando || bloqueado) return;
     const data = localStorage.getItem("maestro");
     if (!data) return;
     const maestro = JSON.parse(data);
@@ -64,7 +66,7 @@ export default function AsistenciaPage() {
   };
 
   const marcarBanio = async (alumnoId: number, accion: string) => {
-    if (marcando) return;
+    if (marcando || bloqueado) return;
     const data = localStorage.getItem("maestro");
     if (!data) return;
     const maestro = JSON.parse(data);
@@ -153,6 +155,21 @@ export default function AsistenciaPage() {
           <a href="/dashboard" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Volver</a>
         </div>
 
+        {bloqueado && (
+          <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "14px", padding: "16px 20px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "28px" }}>🔒</div>
+            <div style={{ flex: 1, minWidth: "220px" }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#fca5a5", fontSize: "14px" }}>Este grupo esta bloqueado</p>
+              <p style={{ margin: "4px 0 0 0", color: "#fecaca", fontSize: "13px" }}>
+                Tu plan gratis solo permite operar 1 grupo. Puedes ver el historial de asistencia de este grupo, pero para volver a tomar asistencia o agregar alumnos necesitas reactivar tu Premium.
+              </p>
+            </div>
+            <a href="/dashboard" style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", padding: "10px 18px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", textDecoration: "none", whiteSpace: "nowrap" }}>
+              Actualizar a Premium
+            </a>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px", marginBottom: "32px" }}>
           <div style={{ background: "linear-gradient(135deg, rgba(21,128,61,0.35), rgba(20,83,45,0.2))", border: "1px solid rgba(34,197,94,0.25)", borderRadius: "18px", padding: "22px", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>✅</div>
@@ -192,7 +209,7 @@ export default function AsistenciaPage() {
           </div>
         </div>
 
-        <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "20px", overflow: "hidden", marginBottom: "24px" }}>
+        <div style={{ background: "rgba(15,23,42,0.6)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "20px", overflow: "hidden", marginBottom: "24px", opacity: bloqueado ? 0.6 : 1 }}>
           <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <span style={{ fontSize: "14px", fontWeight: "700", color: "#e2e8f0" }}>Registrar asistencia</span>
           </div>
@@ -211,13 +228,14 @@ export default function AsistenciaPage() {
                         <button
                           key={e.valor}
                           onClick={() => marcarEstatus(a.id, e.valor)}
-                          disabled={marcando === a.id}
+                          disabled={marcando === a.id || bloqueado}
+                          title={bloqueado ? "Grupo bloqueado: actualiza a Premium para tomar asistencia" : undefined}
                           style={{
                             padding: "6px 14px",
                             borderRadius: "10px",
                             fontSize: "12px",
                             fontWeight: "700",
-                            cursor: marcando === a.id ? "not-allowed" : "pointer",
+                            cursor: marcando === a.id || bloqueado ? "not-allowed" : "pointer",
                             border: `1px solid ${e.color}`,
                             background: activo ? e.color : "transparent",
                             color: activo ? "#0a0f1e" : e.color,
@@ -256,24 +274,26 @@ export default function AsistenciaPage() {
                     <div style={{ display: "flex", gap: "6px" }}>
                       <button
                         onClick={() => marcarBanio(alumnoId, "Salida al banio")}
-                        disabled={marcando === alumnoId || fueraDelSalon}
+                        disabled={marcando === alumnoId || fueraDelSalon || bloqueado}
+                        title={bloqueado ? "Grupo bloqueado: actualiza a Premium" : undefined}
                         style={{
                           padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "700",
                           border: "1px solid #f59e0b", background: fueraDelSalon ? "rgba(245,158,11,0.1)" : "transparent",
-                          color: "#fbbf24", cursor: fueraDelSalon || marcando === alumnoId ? "not-allowed" : "pointer",
-                          opacity: fueraDelSalon ? 0.4 : 1,
+                          color: "#fbbf24", cursor: fueraDelSalon || marcando === alumnoId || bloqueado ? "not-allowed" : "pointer",
+                          opacity: fueraDelSalon || bloqueado ? 0.4 : 1,
                         }}
                       >
                         🚻 Salida al bano
                       </button>
                       <button
                         onClick={() => marcarBanio(alumnoId, "Regreso del banio")}
-                        disabled={marcando === alumnoId || !fueraDelSalon}
+                        disabled={marcando === alumnoId || !fueraDelSalon || bloqueado}
+                        title={bloqueado ? "Grupo bloqueado: actualiza a Premium" : undefined}
                         style={{
                           padding: "4px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "700",
                           border: "1px solid #3b82f6", background: fueraDelSalon ? "#3b82f6" : "transparent",
-                          color: fueraDelSalon ? "#0a0f1e" : "#60a5fa", cursor: !fueraDelSalon || marcando === alumnoId ? "not-allowed" : "pointer",
-                          opacity: !fueraDelSalon ? 0.4 : 1,
+                          color: fueraDelSalon ? "#0a0f1e" : "#60a5fa", cursor: !fueraDelSalon || marcando === alumnoId || bloqueado ? "not-allowed" : "pointer",
+                          opacity: !fueraDelSalon || bloqueado ? 0.4 : 1,
                         }}
                       >
                         🔙 Regreso
