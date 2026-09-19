@@ -83,11 +83,17 @@ export default function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{
-            width: "100%", padding: "14px", marginBottom: "20px",
+            width: "100%", padding: "14px", marginBottom: "8px",
             border: "2px solid #e2e8f0", borderRadius: "12px",
             fontSize: "15px", outline: "none", boxSizing: "border-box",
           }}
         />
+
+        <p style={{ textAlign: "right", margin: "0 0 20px 0" }}>
+          <a href="/recuperar" style={{ color: "#667eea", fontSize: "13px", textDecoration: "none", fontWeight: "600" }}>
+            ¿Olvidaste tu contraseña?
+          </a>
+        </p>
 
         <button
           onClick={iniciarSesion}
