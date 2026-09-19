@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function RestablecerPassword() {
+function FormularioRestablecer() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -121,5 +121,13 @@ export default function RestablecerPassword() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function RestablecerPassword() {
+  return (
+    <Suspense fallback={null}>
+      <FormularioRestablecer />
+    </Suspense>
   );
 }
