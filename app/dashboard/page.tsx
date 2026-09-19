@@ -232,11 +232,16 @@ export default function Dashboard() {
     if (!alumnoABaja || !grupoGestionando || dandoDeBajaId) return;
     setDandoDeBajaId(alumnoABaja.id);
 
-    await fetch(`/api/alumnos/${alumnoABaja.id}`, {
+    const res = await fetch(`/api/alumnos/${alumnoABaja.id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ maestroId: maestro.id }),
     });
+
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "No se pudo dar de baja al alumno");
+    }
 
     setAlumnoABaja(null);
     setDandoDeBajaId(null);
@@ -277,15 +282,6 @@ export default function Dashboard() {
             {maestro.plan !== "premium" && (
               <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                 Actualizar a Premium $49/mes
-              </button>
-            )}
-            {maestro.plan === "premium" ? (
-              <a href="/dashboard/diario" style={{ background: "rgba(129,140,248,0.2)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
-                📓 Diario y Bitácora
-              </a>
-            ) : (
-              <button onClick={() => setMostrarModalPago(true)} style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                🔒 Diario y Bitácora (Premium)
               </button>
             )}
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
