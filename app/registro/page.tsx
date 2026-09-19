@@ -5,6 +5,7 @@ export default function Registro() {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [color, setColor] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -16,13 +17,18 @@ export default function Registro() {
       setMensaje("Por favor llena todos los campos");
       return;
     }
+    if (!aceptaTerminos) {
+      setColor("#ef4444");
+      setMensaje("Debes aceptar los Términos y el Aviso de Privacidad para continuar");
+      return;
+    }
     setCargando(true);
     setMensaje("");
 
     const res = await fetch("/api/registro", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, email, password }),
+      body: JSON.stringify({ nombre, email, password, aceptaTerminos }),
     });
     const data = await res.json();
 
@@ -101,15 +107,38 @@ export default function Registro() {
         <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "12px", textAlign: "left" }}>          ⚠️ Guarda bien tu contrasena: por el momento no es posible recuperarla si la olvidas.
         </p>
 
+        <label style={{
+          display: "flex", alignItems: "flex-start", gap: "8px",
+          marginBottom: "20px", textAlign: "left", cursor: "pointer",
+        }}>
+          <input
+            type="checkbox"
+            checked={aceptaTerminos}
+            onChange={(e) => setAceptaTerminos(e.target.checked)}
+            style={{ marginTop: "3px", width: "16px", height: "16px", flexShrink: 0, cursor: "pointer" }}
+          />
+          <span style={{ fontSize: "12px", color: "#475569", lineHeight: 1.5 }}>
+            He leído y acepto los{" "}
+            <a href="/terminos-y-condiciones" target="_blank" rel="noopener noreferrer" style={{ color: "#667eea", fontWeight: 600 }}>
+              Términos y Condiciones
+            </a>{" "}
+            y el{" "}
+            <a href="/aviso-de-privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "#667eea", fontWeight: 600 }}>
+              Aviso de Privacidad
+            </a>
+            .
+          </span>
+        </label>
+
         <button
           onClick={registrar}
-          disabled={cargando}
+          disabled={cargando || !aceptaTerminos}
           style={{
             width: "100%", padding: "16px",
-            background: cargando ? "#cbd5e1" : "linear-gradient(135deg, #667eea, #764ba2)",
+            background: cargando || !aceptaTerminos ? "#cbd5e1" : "linear-gradient(135deg, #667eea, #764ba2)",
             color: "white", border: "none", borderRadius: "12px",
             fontSize: "16px", fontWeight: "700",
-            cursor: cargando ? "not-allowed" : "pointer",
+            cursor: cargando || !aceptaTerminos ? "not-allowed" : "pointer",
             marginBottom: "16px",
           }}
         >

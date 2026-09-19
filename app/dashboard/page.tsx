@@ -383,6 +383,10 @@ export default function Dashboard() {
               💬 WhatsApp
             </a>
           </div>
+          <div style={{ marginTop: "16px", display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+            <a href="/terminos-y-condiciones" style={{ color: "#64748b", fontSize: "12px", textDecoration: "underline" }}>Términos y Condiciones</a>
+            <a href="/aviso-de-privacidad" style={{ color: "#64748b", fontSize: "12px", textDecoration: "underline" }}>Aviso de Privacidad</a>
+          </div>
         </div>
       </div>
 
