@@ -105,8 +105,9 @@ export default function AvisoDePrivacidad() {
           ayuda dentro de la aplicación.
         </p>
 
-        <div style={{ marginTop: "48px", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
-          <a href="/terminos-y-condiciones" style={{ color: "#4f46e5", fontWeight: 600, textDecoration: "none" }}>← Ver Términos y Condiciones</a>
+        <div style={{ marginTop: "48px", borderTop: "1px solid #e2e8f0", paddingTop: "20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <a href="/dashboard" style={{ color: "#64748b", fontWeight: 600, textDecoration: "none" }}>← Volver al dashboard</a>
+          <a href="/terminos-y-condiciones" style={{ color: "#4f46e5", fontWeight: 600, textDecoration: "none" }}>Ver Términos y Condiciones →</a>
         </div>
       </div>
     </main>

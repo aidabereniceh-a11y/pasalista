@@ -131,7 +131,8 @@ export default function TerminosYCondiciones() {
           aplicación (menú principal del panel del maestro).
         </p>
 
-        <div style={{ marginTop: "48px", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
+        <div style={{ marginTop: "48px", borderTop: "1px solid #e2e8f0", paddingTop: "20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <a href="/dashboard" style={{ color: "#64748b", fontWeight: 600, textDecoration: "none" }}>← Volver al dashboard</a>
           <a href="/aviso-de-privacidad" style={{ color: "#4f46e5", fontWeight: 600, textDecoration: "none" }}>Ver Aviso de Privacidad →</a>
         </div>
       </div>
