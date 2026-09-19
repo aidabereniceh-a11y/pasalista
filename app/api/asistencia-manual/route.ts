@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { grupoEstaBloqueado } from "../../../lib/planLimits";
 
 const ESTATUS_VALIDOS = ["Presente", "Ausente", "Retardo", "Justificado"];
 
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
 
   if (errorGrupo || !grupo || String(grupo.maestro_id) !== String(maestroId)) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // Plan gratis con mas de 1 grupo: solo el mas antiguo puede tomar asistencia
+  if (await grupoEstaBloqueado(grupoId, maestroId)) {
+    return Response.json(
+      { error: "Este grupo esta bloqueado. Actualiza a Premium para seguir usandolo." },
+      { status: 403 }
+    );
   }
 
   const hoy = new Date();

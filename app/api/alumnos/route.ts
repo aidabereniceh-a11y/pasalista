@@ -1,6 +1,8 @@
+// Colocar en: app/api/alumnos/route.ts
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { grupoEstaBloqueado } from "../../../lib/planLimits";
 
 async function verificarDueno(grupoId: string, maestroId: string) {
   const { data: grupo } = await supabaseAdmin
@@ -49,6 +51,14 @@ export async function POST(request: Request) {
   const esDueno = await verificarDueno(grupoId, maestroId);
   if (!esDueno) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // Plan gratis con mas de 1 grupo: solo el mas antiguo puede agregar alumnos nuevos
+  if (await grupoEstaBloqueado(grupoId, maestroId)) {
+    return Response.json(
+      { error: "Este grupo esta bloqueado. Actualiza a Premium para agregar mas alumnos." },
+      { status: 403 }
+    );
   }
 
   const listaAlumnos = nombres
