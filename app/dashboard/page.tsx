@@ -284,6 +284,15 @@ export default function Dashboard() {
                 Actualizar a Premium $49/mes
               </button>
             )}
+            {maestro.plan === "premium" ? (
+              <a href="/dashboard/diario" style={{ background: "rgba(129,140,248,0.2)", color: "#a5b4fc", border: "1px solid rgba(129,140,248,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
+                📓 Diario y Bitácora
+              </a>
+            ) : (
+              <button onClick={() => setMostrarModalPago(true)} style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                🔒 Diario y Bitácora (Premium)
+              </button>
+            )}
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesion
             </button>
@@ -404,7 +413,8 @@ export default function Dashboard() {
               💳 Suscripción automática (tarjeta)
             </button>
             <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
-              Se renueva sola cada mes. Cancela cuando quieras.
+              Se renueva sola cada mes. Cancela cuando quieras.<br />
+              <strong style={{ color: "#fbbf24" }}>Importante:</strong> inicia sesión en Mercado Pago con el mismo correo que usas en PasaLista ({maestro?.email}).
             </p>
 
             <button
@@ -415,7 +425,7 @@ export default function Dashboard() {
               🏪 Pago único (tarjeta, OXXO, SPEI)
             </button>
             <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
-              Pagas cada mes manualmente, sin renovación automática.
+              Pagas cada mes manualmente, sin renovación automática. Recomendado si tu correo de Mercado Pago es distinto al de PasaLista.
             </p>
 
             <button
