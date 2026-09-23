@@ -2,6 +2,7 @@
 export const runtime = "edge";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import * as XLSX from "xlsx";
 
 const ESTATUS_ABREV: Record<string, { letra: string; color: string }> = {
   Presente: { letra: "P", color: "#22c55e" },
@@ -96,6 +97,24 @@ export default function ReporteAsistencia() {
     return registrosDelDia[registrosDelDia.length - 1].accion;
   };
 
+  const exportarExcelReporte = () => {
+    const encabezado = ["Alumno", ...dias.map((d) => d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }))];
+    const filas = alumnos.map((a) => {
+      const fila: any = { Alumno: a.nombre };
+      dias.forEach((d) => {
+        const estatus = obtenerEstatus(a.id, d);
+        const etiqueta = d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
+        fila[etiqueta] = estatus ? (ESTATUS_ABREV[estatus]?.letra || estatus) : "";
+      });
+      return fila;
+    });
+    const hoja = XLSX.utils.json_to_sheet(filas, { header: encabezado });
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Reporte");
+    const nombreArchivo = `Reporte_${grupo?.nombre || "grupo"}_${periodo}_${fechaRef}.xlsx`;
+    XLSX.writeFile(libro, nombreArchivo);
+  };
+
   const tituloPeriodo =
     periodo === "dia"
       ? dias[0]?.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -157,6 +176,12 @@ export default function ReporteAsistencia() {
             style={{ padding: "8px 16px", borderRadius: "10px", border: "none", background: "#334155", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}
           >
             🖨️ Imprimir / PDF
+          </button>
+          <button
+            onClick={exportarExcelReporte}
+            style={{ padding: "8px 16px", borderRadius: "10px", border: "none", background: "#15803d", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}
+          >
+            📥 Exportar Excel
           </button>
         </div>
 
