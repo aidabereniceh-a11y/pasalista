@@ -34,6 +34,40 @@ const SITUACIONES = [
   "Incumplimiento de tareas",
 ];
 
+const NOMBRES_MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+// Fecha de hoy según la hora local del maestro (no UTC), formato "2026-09-24"
+function hoyLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Mes actual en formato "2026-09"
+function mesActual() {
+  return hoyLocal().slice(0, 7);
+}
+
+// Lista de los últimos 24 meses para el selector: [{ valor: "2026-09", texto: "Septiembre 2026" }, ...]
+function ultimosMeses(cantidad = 24) {
+  const lista: { valor: string; texto: string }[] = [];
+  const d = new Date();
+  d.setDate(1);
+  for (let i = 0; i < cantidad; i++) {
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    lista.push({ valor, texto: `${NOMBRES_MESES[d.getMonth()]} ${d.getFullYear()}` });
+    d.setMonth(d.getMonth() - 1);
+  }
+  return lista;
+}
+
+function textoMes(mes: string) {
+  const [y, m] = mes.split("-").map(Number);
+  return `${NOMBRES_MESES[m - 1]} ${y}`;
+}
+
 const inputStyle = {
   padding: "12px",
   borderRadius: "10px",
@@ -138,7 +172,7 @@ function exportarWord(titulo: string, html: string) {
     ${html}
     <p style="margin-top:30px; font-size:11px; color:#94a3b8;">Generado desde PasaLista</p>
   </body></html>`;
-  const blob = new Blob(["\ufeff", doc], { type: "application/msword" });
+  const blob = new Blob(["﻿", doc], { type: "application/msword" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -182,13 +216,15 @@ export default function DiarioDelMaestro() {
   const [historialDiario, setHistorialDiario] = useState<any[]>([]);
   const [historialBitacora, setHistorialBitacora] = useState<any[]>([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const peticionRef = useRef(0);
 
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [historialGrupo, setHistorialGrupo] = useState("");
   const [historialAlumno, setHistorialAlumno] = useState("");
+  const [historialMes, setHistorialMes] = useState(mesActual());
   const [alumnosHistorial, setAlumnosHistorial] = useState<any[]>([]);
 
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(hoyLocal());
   const [grupo, setGrupo] = useState("");
   const [nombreDocente, setNombreDocente] = useState("");
   const [firmaDocente, setFirmaDocente] = useState("");
@@ -201,7 +237,7 @@ export default function DiarioDelMaestro() {
   const [compromisos, setCompromisos] = useState("");
   const [autoeval, setAutoeval] = useState<any>({});
 
-  const [incFecha, setIncFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [incFecha, setIncFecha] = useState(hoyLocal());
   const [incGrupo, setIncGrupo] = useState("");
   const [incAlumno, setIncAlumno] = useState("");
   const [incSituaciones, setIncSituaciones] = useState<any>({});
@@ -247,39 +283,56 @@ export default function DiarioDelMaestro() {
       .then((data) => setAlumnosHistorial((data.alumnos || []).filter((a: any) => a.activo !== false)));
   }, [historialGrupo]);
 
+  // Cada vez que cambia el grupo o el mes del historial, se vuelve a pedir a la API
+  useEffect(() => {
+    if (!mostrarHistorial || !historialGrupo) return;
+    cargarHistorial();
+  }, [mostrarHistorial, historialGrupo, historialMes, tab]); // eslint-disable-line
+
   const limpiarFormulario = () => {
     setEditandoId(null);
-    setFecha(new Date().toISOString().slice(0, 10));
+    setFecha(hoyLocal());
     setGrupo(""); setNombreDocente(""); setFirmaDocente(""); setFirmaDirector(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
     setObservaciones(""); setCompromisos(""); setAutoeval({});
-    setIncFecha(new Date().toISOString().slice(0, 10));
+    setIncFecha(hoyLocal());
     setIncGrupo(""); setIncAlumno(""); setIncSituaciones({}); setIncDescripcion(""); setIncAccion(""); setIncNotifico(false); setFirmas({});
   };
 
   const cargarHistorial = async () => {
     const maestro = getMaestro();
-    if (!maestro?.id) return;
+    if (!maestro?.id || !historialGrupo) return;
+    const miPeticion = ++peticionRef.current;
     setCargandoHistorial(true);
-    if (tab === "diario") {
-      const res = await fetch(`/api/diario?maestro_id=${maestro.id}`);
+    const endpoint = tab === "diario" ? "/api/diario" : "/api/bitacora";
+    try {
+      const res = await fetch(`${endpoint}?maestro_id=${maestro.id}&grupo_id=${historialGrupo}&mes=${historialMes}`);
       const data = await res.json();
-      setHistorialDiario(Array.isArray(data) ? data : []);
-    } else {
-      const res = await fetch(`/api/bitacora?maestro_id=${maestro.id}`);
-      const data = await res.json();
-      setHistorialBitacora(Array.isArray(data) ? data : []);
+      if (miPeticion !== peticionRef.current) return; // llegó una respuesta vieja, se ignora
+      const lista = Array.isArray(data) ? data : [];
+      if (tab === "diario") setHistorialDiario(lista);
+      else setHistorialBitacora(lista);
+    } catch {
+      if (miPeticion !== peticionRef.current) return;
+      if (tab === "diario") setHistorialDiario([]);
+      else setHistorialBitacora([]);
     }
     setCargandoHistorial(false);
   };
 
   const abrirHistorial = () => {
+    if (!mostrarHistorial) {
+      setHistorialGrupo("");
+      setHistorialAlumno("");
+      setHistorialMes(mesActual());
+      setHistorialDiario([]);
+      setHistorialBitacora([]);
+    }
     setMostrarHistorial(!mostrarHistorial);
-    if (!mostrarHistorial) { setHistorialGrupo(""); setHistorialAlumno(""); cargarHistorial(); }
   };
 
   const editarEntradaDiario = (registro: any) => {
     setEditandoId(registro.id);
-    setFecha(registro.fecha || new Date().toISOString().slice(0, 10));
+    setFecha(registro.fecha || hoyLocal());
     setGrupo(registro.grupo_id || "");
     setNombreDocente(registro.nombre_docente || "");
     setFirmaDocente(registro.firma_docente || "");
@@ -296,7 +349,7 @@ export default function DiarioDelMaestro() {
 
   const editarEntradaBitacora = (registro: any) => {
     setEditandoId(registro.id);
-    setIncFecha(registro.fecha || new Date().toISOString().slice(0, 10));
+    setIncFecha(registro.fecha || hoyLocal());
     setIncGrupo(registro.grupo_id || "");
     setIncAlumno(registro.alumno_nombre || "");
     setIncSituaciones(registro.situaciones || {});
@@ -397,6 +450,12 @@ export default function DiarioDelMaestro() {
     border: "none", color: textColor, background: bg, fontWeight: 700, fontSize: "13px", cursor: "pointer",
   });
 
+  const listaDiario = historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo));
+  const listaBitacora = historialBitacora.filter(
+    (r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)
+  );
+  const totalHistorial = tab === "diario" ? listaDiario.length : listaBitacora.length;
+
   if (esPremium === null) return null;
 
   if (!esPremium) {
@@ -463,6 +522,18 @@ export default function DiarioDelMaestro() {
                   ))}
                 </select>
               </div>
+              <div style={{ flex: 1, minWidth: "160px" }}>
+                <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>📅 Mes</label>
+                <select
+                  value={historialMes}
+                  onChange={(e) => setHistorialMes(e.target.value)}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  {ultimosMeses().map((m) => (
+                    <option key={m.valor} value={m.valor}>{m.texto}</option>
+                  ))}
+                </select>
+              </div>
               {tab === "incidencias" && historialGrupo && (
                 <div style={{ flex: 1, minWidth: "160px" }}>
                   <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>Alumno</label>
@@ -480,14 +551,20 @@ export default function DiarioDelMaestro() {
               )}
             </div>
 
+            {historialGrupo && !cargandoHistorial && (
+              <p style={{ color: "#4f46e5", fontSize: "12px", fontWeight: 700, margin: "0 0 8px" }}>
+                {totalHistorial} {tab === "diario" ? (totalHistorial === 1 ? "entrada" : "entradas") : (totalHistorial === 1 ? "incidencia" : "incidencias")} en {textoMes(historialMes)}
+              </p>
+            )}
+
             {!historialGrupo ? (
               <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Selecciona un grupo para ver su historial.</p>
             ) : cargandoHistorial ? (
               <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Cargando…</p>
             ) : tab === "diario" ? (
-              historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo)).length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay entradas guardadas para ese grupo.</p>
-              ) : historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo)).map((r) => (
+              listaDiario.length === 0 ? (
+                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay entradas guardadas para ese grupo en {textoMes(historialMes)}.</p>
+              ) : listaDiario.map((r) => (
                 <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha}</div>
@@ -498,9 +575,9 @@ export default function DiarioDelMaestro() {
                   </button>
                 </div>
               ))
-            ) : historialBitacora.filter((r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)).length === 0 ? (
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay incidencias registradas para esa selección.</p>
-            ) : historialBitacora.filter((r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)).map((r) => (
+            ) : listaBitacora.length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay incidencias registradas para esa selección en {textoMes(historialMes)}.</p>
+            ) : listaBitacora.map((r) => (
               <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha} {r.alumno_nombre ? "· " + r.alumno_nombre : ""}</div>
