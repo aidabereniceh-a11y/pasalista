@@ -2,6 +2,7 @@
 export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { esPremium, respuestaNoPremium } from "@/lib/verificarPremium";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -23,6 +24,9 @@ export async function POST(req: NextRequest) {
 
   if (!maestroId) {
     return NextResponse.json({ error: "Falta maestro_id" }, { status: 401 });
+  }
+  if (!(await esPremium(maestroId))) {
+    return NextResponse.json(respuestaNoPremium, { status: 403 });
   }
   if (!fecha) {
     return NextResponse.json({ error: "Falta la fecha" }, { status: 400 });
@@ -76,6 +80,9 @@ export async function PUT(req: NextRequest) {
   if (!id || !maestroId) {
     return NextResponse.json({ error: "Falta id o maestro_id" }, { status: 400 });
   }
+  if (!(await esPremium(maestroId))) {
+    return NextResponse.json(respuestaNoPremium, { status: 403 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("diario_maestro")
@@ -108,6 +115,9 @@ export async function GET(req: NextRequest) {
   const maestroId = req.nextUrl.searchParams.get("maestro_id");
   if (!maestroId) {
     return NextResponse.json({ error: "Falta maestro_id" }, { status: 401 });
+  }
+  if (!(await esPremium(maestroId))) {
+    return NextResponse.json(respuestaNoPremium, { status: 403 });
   }
 
   const { data, error } = await supabaseAdmin
