@@ -377,7 +377,18 @@ export default function Dashboard() {
             <button onClick={() => setAvisoGafetes(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>×</button>
           </div>
         )}
-
+        <div style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(99,102,241,0.12))", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "12px", padding: "14px 16px", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+          <div style={{ fontSize: "26px", lineHeight: 1 }}>🎨</div>
+          <div>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#e2e8f0" }}>
+              <span style={{ background: "#22c55e", color: "#052e16", fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "20px", marginRight: "8px", verticalAlign: "middle" }}>NUEVO</span>
+              Personaliza tus gafetes
+            </p>
+            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#cbd5e1", lineHeight: 1.5 }}>
+              Al dar clic en <strong>🪪 Descargar gafetes</strong> puedes elegir el <strong>color</strong>, el <strong>diseño</strong> (Clásico, Moderno, Infantil o Minimalista) y el <strong>tamaño</strong> (credencial, mediano o grande para colgar). También puedes agregar el nombre de tu escuela y el ciclo escolar. El código QR no cambia: los gafetes que ya imprimiste siguen funcionando.
+            </p>
+          </div>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h2 style={{ fontSize: "18px", fontWeight: "600", margin: 0 }}>Mis grupos</h2>
           <button onClick={() => setMostrarFormGrupo(!mostrarFormGrupo)} style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
