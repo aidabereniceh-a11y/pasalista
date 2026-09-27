@@ -1,4 +1,9 @@
+// Colocar en: app/api/gafetes/pago/route.ts
 export const runtime = "edge";
+
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+
+const PRECIO_GAFETES = 99;
 
 export async function POST(request: Request) {
   try {
@@ -14,18 +19,36 @@ export async function POST(request: Request) {
       return Response.json({ error: "Faltan datos" }, { status: 400 });
     }
 
+    // Revisamos el grupo antes de cobrar
+    const { data: grupo, error: errorGrupo } = await supabaseAdmin
+      .from("grupos")
+      .select("*")
+      .eq("id", grupoId)
+      .single();
+
+    if (errorGrupo || !grupo) {
+      return Response.json({ error: "No se encontró el grupo" }, { status: 404 });
+    }
+    if (grupo.maestro_id !== undefined && String(grupo.maestro_id) !== String(maestroId)) {
+      return Response.json({ error: "Este grupo no pertenece a tu cuenta" }, { status: 403 });
+    }
+    if (grupo.gafetes_pagado) {
+      // Ya estaba pagado: no cobramos otra vez
+      return Response.json({ url: "https://pasalista.mx/dashboard?gafetes=ok&grupo=" + grupoId });
+    }
+
     const preference = {
       items: [{
         id: String(grupoId),
         title: "Gafetes QR " + grupoNombre,
         quantity: 1,
-        unit_price: 99,
+        unit_price: PRECIO_GAFETES,
         currency_id: "MXN",
       }],
       back_urls: {
         success: "https://pasalista.mx/dashboard?gafetes=ok&grupo=" + grupoId,
-        failure: "https://pasalista.mx/dashboard?gafetes=error",
-        pending: "https://pasalista.mx/dashboard?gafetes=pendiente",
+        failure: "https://pasalista.mx/dashboard?gafetes=error&grupo=" + grupoId,
+        pending: "https://pasalista.mx/dashboard?gafetes=pendiente&grupo=" + grupoId,
       },
       auto_return: "approved",
       external_reference: "gafetes_" + grupoId + "_" + maestroId,
@@ -46,11 +69,12 @@ export async function POST(request: Request) {
     try {
       data = JSON.parse(text);
     } catch {
-      return Response.json({ error: "MP no es JSON", raw: text }, { status: 500 });
+      return Response.json({ error: "Mercado Pago no respondió correctamente" }, { status: 500 });
     }
 
     if (!data.init_point) {
-      return Response.json({ error: "Sin init_point", mp_error: data }, { status: 500 });
+      console.error("Gafetes pago: sin init_point", data);
+      return Response.json({ error: "No se pudo crear el pago. Intenta de nuevo." }, { status: 500 });
     }
 
     return Response.json({ url: data.init_point });

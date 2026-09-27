@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function Dashboard() {
   const [maestro, setMaestro] = useState<any>(null);
@@ -18,6 +18,8 @@ export default function Dashboard() {
   const [cargandoCancelar, setCargandoCancelar] = useState(false);
   const [mostrarConfirmCancelar, setMostrarConfirmCancelar] = useState(false);
   const [generandoGafetesId, setGenerandoGafetesId] = useState<number | null>(null);
+  const [avisoGafetes, setAvisoGafetes] = useState<{ fondo: string; borde: string; texto: string } | null>(null);
+  const avisoProcesado = useRef(false);
 
   const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
   const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
@@ -60,8 +62,55 @@ export default function Dashboard() {
   const cargarGrupos = async (maestroId: number) => {
     const res = await fetch(`/api/grupos?maestroId=${maestroId}`);
     const data = await res.json();
-    setGrupos(data.grupos || []);
+    const lista = data.grupos || [];
+    setGrupos(lista);
+    return lista as any[];
   };
+
+  // Al regresar de Mercado Pago (?gafetes=ok|pendiente|error&grupo=ID)
+  useEffect(() => {
+    if (!maestro?.id || avisoProcesado.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const estado = params.get("gafetes");
+    if (!estado) return;
+    avisoProcesado.current = true;
+    const grupoId = params.get("grupo");
+    window.history.replaceState(null, "", "/dashboard");
+
+    if (estado === "error") {
+      setAvisoGafetes({ fondo: "rgba(239,68,68,0.15)", borde: "rgba(239,68,68,0.4)", texto: "❌ El pago de los gafetes no se completó. No se hizo ningún cobro. Puedes intentarlo de nuevo." });
+      return;
+    }
+
+    if (estado === "pendiente") {
+      setAvisoGafetes({ fondo: "rgba(245,158,11,0.15)", borde: "rgba(245,158,11,0.4)", texto: "⏳ Tu pago está pendiente (OXXO o transferencia). En cuanto Mercado Pago lo confirme, se activará el botón \"Descargar gafetes\". Puede tardar hasta 1 día hábil." });
+      return;
+    }
+
+    if (estado === "ok") {
+      setAvisoGafetes({ fondo: "rgba(99,102,241,0.15)", borde: "rgba(99,102,241,0.4)", texto: "✅ Pago recibido. Estamos confirmando tus gafetes con Mercado Pago…" });
+      let intentos = 0;
+      const revisar = async () => {
+        intentos++;
+        try {
+          const lista = await cargarGrupos(maestro.id);
+          const g = lista.find((x: any) => String(x.id) === String(grupoId));
+          if (g?.gafetes_pagado) {
+            setAvisoGafetes({ fondo: "rgba(34,197,94,0.15)", borde: "rgba(34,197,94,0.4)", texto: `🎉 ¡Listo! Los gafetes de ${g.nombre} ya están desbloqueados. Da clic en "🪪 Descargar gafetes".` });
+            return;
+          }
+        } catch {
+          // si falla una revisión, seguimos intentando
+        }
+        if (intentos < 20) {
+          setTimeout(revisar, 3000);
+        } else {
+          setAvisoGafetes({ fondo: "rgba(245,158,11,0.15)", borde: "rgba(245,158,11,0.4)", texto: "⏳ Tu pago se recibió, pero la confirmación está tardando. Recarga esta página en unos minutos. Si en 1 hora no se desbloquean tus gafetes, escríbenos por WhatsApp y lo revisamos." });
+        }
+      };
+      revisar();
+    }
+  }, [maestro?.id]); // eslint-disable-line
 
   const crearGrupo = async () => {
     if (cargando) return;
@@ -149,6 +198,10 @@ export default function Dashboard() {
       }),
     });
     const data = await res.json();
+    if (!res.ok || !data.url) {
+      alert(data.error || "No se pudo iniciar el pago. Intenta de nuevo.");
+      return;
+    }
     window.location.href = data.url;
   };
 
@@ -317,6 +370,13 @@ export default function Dashboard() {
         {maestro.plan !== "premium" && (
           <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "12px", padding: "12px 16px", marginBottom: "20px", color: "#c7d2fe", fontSize: "13px" }}>
             📋 Tu plan gratis incluye <strong>1 grupo</strong> con alumnos ilimitados ({grupos.length}/1 usado). Para crear 2 o mas grupos, actualiza a Premium ($49/mes).
+          </div>
+        )}
+
+        {avisoGafetes && (
+          <div style={{ background: avisoGafetes.fondo, border: `1px solid ${avisoGafetes.borde}`, borderRadius: "12px", padding: "14px 16px", marginBottom: "20px", color: "white", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+            <span>{avisoGafetes.texto}</span>
+            <button onClick={() => setAvisoGafetes(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>×</button>
           </div>
         )}
 
