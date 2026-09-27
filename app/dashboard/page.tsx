@@ -1,5 +1,6 @@
 ﻿"use client";
 import { useState, useEffect, useRef } from "react";
+import PersonalizarGafetes from "../../components/PersonalizarGafetes";
 
 export default function Dashboard() {
   const [maestro, setMaestro] = useState<any>(null);
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [generandoGafetesId, setGenerandoGafetesId] = useState<number | null>(null);
   const [avisoGafetes, setAvisoGafetes] = useState<{ fondo: string; borde: string; texto: string } | null>(null);
   const avisoProcesado = useRef(false);
+  const [gafetesAPersonalizar, setGafetesAPersonalizar] = useState<{ grupo: any; alumnos: any[] } | null>(null);
 
   const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
   const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
@@ -174,12 +176,8 @@ export default function Dashboard() {
           return;
         }
 
-        const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
-        await generarGafetesPDF(
-          alumnosGrupo,
-          { nombre: g.nombre, grado: g.grado },
-          { nombre: maestro.nombre, email: maestro.email }
-        );
+        // Abre la ventana para elegir color, diseño y tamaño antes de imprimir
+        setGafetesAPersonalizar({ grupo: g, alumnos: alumnosGrupo });
       } catch {
         alert("No se pudieron generar los gafetes. Intenta de nuevo.");
       } finally {
@@ -608,6 +606,15 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {gafetesAPersonalizar && (
+        <PersonalizarGafetes
+          grupo={{ nombre: gafetesAPersonalizar.grupo.nombre, grado: gafetesAPersonalizar.grupo.grado }}
+          maestro={{ nombre: maestro.nombre, email: maestro.email }}
+          alumnos={gafetesAPersonalizar.alumnos}
+          onClose={() => setGafetesAPersonalizar(null)}
+        />
       )}
 
       {grupoAEliminar && (
