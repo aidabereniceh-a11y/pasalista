@@ -1,6 +1,5 @@
 ﻿"use client";
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
 
 export default function Dashboard() {
   const [maestro, setMaestro] = useState<any>(null);
@@ -18,6 +17,7 @@ export default function Dashboard() {
   const [cargandoPago, setCargandoPago] = useState(false);
   const [cargandoCancelar, setCargandoCancelar] = useState(false);
   const [mostrarConfirmCancelar, setMostrarConfirmCancelar] = useState(false);
+  const [generandoGafetesId, setGenerandoGafetesId] = useState<number | null>(null);
 
   const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
   const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
@@ -66,7 +66,6 @@ export default function Dashboard() {
   const crearGrupo = async () => {
     if (cargando) return;
     if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
-
     setCargando(true);
     setMensaje("");
 
@@ -109,33 +108,49 @@ export default function Dashboard() {
   };
 
   const handleGafetes = async (g: any) => {
-  if (g.gafetes_pagado) {
-    const { data: alumnosGrupo } = await supabase
-      .from("alumnos")
-      .select("id, nombre")
-      .eq("grupo_id", g.id)
+    if (g.gafetes_pagado) {
+      if (generandoGafetesId) return;
+      setGenerandoGafetesId(g.id);
+      try {
+        // Los alumnos se piden a la API (con service role). La consulta directa a Supabase
+        // desde el navegador regresaba una lista vacía por el RLS, y por eso los gafetes salían en blanco.
+        const res = await fetch(`/api/alumnos?grupoId=${g.id}&maestroId=${maestro.id}`);
+        const data = await res.json();
+        const alumnosGrupo = (data.alumnos || [])
+          .filter((a: any) => a.activo !== false)
+          .map((a: any) => ({ id: a.id, nombre: a.nombre }));
 
-    const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF")
-    await generarGafetesPDF(
-      alumnosGrupo || [],
-      { nombre: g.nombre, grado: g.grado },
-      { nombre: maestro.nombre, email: maestro.email }
-    )
-    return
-  }
+        if (!res.ok || alumnosGrupo.length === 0) {
+          alert(data.error || "Este grupo no tiene alumnos activos para generar gafetes.");
+          return;
+        }
 
-  const res = await fetch("/api/gafetes/pago", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grupoId: g.id,
-      grupoNombre: g.nombre,
-      maestroId: maestro.id,
-    }),
-  })
-  const data = await res.json()
-  window.location.href = data.url
-}
+        const { generarGafetesPDF } = await import("../../lib/generarGafetesPDF");
+        await generarGafetesPDF(
+          alumnosGrupo,
+          { nombre: g.nombre, grado: g.grado },
+          { nombre: maestro.nombre, email: maestro.email }
+        );
+      } catch {
+        alert("No se pudieron generar los gafetes. Intenta de nuevo.");
+      } finally {
+        setGenerandoGafetesId(null);
+      }
+      return;
+    }
+
+    const res = await fetch("/api/gafetes/pago", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupoId: g.id,
+        grupoNombre: g.nombre,
+        maestroId: maestro.id,
+      }),
+    });
+    const data = await res.json();
+    window.location.href = data.url;
+  };
 
   const irAPagarManual = async () => {
     setCargandoPago(true);
@@ -364,13 +379,15 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => handleGafetes(g)}
+                    disabled={generandoGafetesId === g.id}
                     style={{
                       background: g.gafetes_pagado ? "rgba(26,107,60,0.3)" : "rgba(201,149,42,0.2)",
                       color: g.gafetes_pagado ? "#4ade80" : "#fbbf24",
                       border: g.gafetes_pagado ? "1px solid rgba(26,107,60,0.4)" : "1px solid rgba(201,149,42,0.3)",
-                      padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer"
+                      padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600",
+                      cursor: generandoGafetesId === g.id ? "wait" : "pointer",
                     }}>
-                    {g.gafetes_pagado ? "🪪 Descargar gafetes" : "🪪 Gafetes $99"}
+                    {generandoGafetesId === g.id ? "Generando..." : g.gafetes_pagado ? "🪪 Descargar gafetes" : "🪪 Gafetes $99"}
                   </button>
                   <button onClick={() => setGrupoAEliminar(g)} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                     Eliminar
@@ -382,8 +399,8 @@ export default function Dashboard() {
         )}
 
         <div style={{ marginTop: "40px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "20px", textAlign: "center" }}>
-          <h3 style={{ margin: "0 0 8px 0", fontSize: "15px", fontWeight: "700" }}>Necesitas ayuda?</h3>
-          <p style={{ margin: "0 0 12px 0", color: "#94a3b8", fontSize: "13px" }}>Si tienes dudas o algun problema, contactanos:</p>
+          <h3 style={{ margin: "0 0 8px 0", fontSize: "15px", fontWeight: "700" }}>¿Necesitas ayuda?</h3>
+          <p style={{ margin: "0 0 12px 0", color: "#94a3b8", fontSize: "13px" }}>Si tienes dudas o algún problema, contáctanos:</p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
             <a href="mailto:aidabereniceh@gmail.com" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
               ✉️ Email
@@ -443,7 +460,7 @@ export default function Dashboard() {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Cancelar suscripción automática?</h3>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Cancelar suscripción automática?</h3>
             <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
               No se te cobrará de nuevo. Tu Premium sigue activo hasta que termine el periodo ya pagado.
             </p>
@@ -452,7 +469,7 @@ export default function Dashboard() {
                 Volver
               </button>
               <button onClick={cancelarSuscripcion} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: cargandoCancelar ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
-                {cargandoCancelar ? "Cancelando..." : "Si, cancelar"}
+                {cargandoCancelar ? "Cancelando..." : "Sí, cancelar"}
               </button>
             </div>
           </div>
@@ -517,16 +534,16 @@ export default function Dashboard() {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1100 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Dar de baja a {alumnoABaja.nombre}?</h3>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Dar de baja a {alumnoABaja.nombre}?</h3>
             <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              Ya no aparecera en la lista ni en nuevos codigos QR. Su historial de asistencia se conserva.
+              Ya no aparecerá en la lista ni en nuevos códigos QR. Su historial de asistencia se conserva.
             </p>
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => setAlumnoABaja(null)} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
                 Cancelar
               </button>
               <button onClick={confirmarBajaAlumno} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: dandoDeBajaId ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
-                {dandoDeBajaId ? "..." : "Si, dar de baja"}
+                {dandoDeBajaId ? "..." : "Sí, dar de baja"}
               </button>
             </div>
           </div>
@@ -537,9 +554,9 @@ export default function Dashboard() {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Eliminar grupo {grupoAEliminar.nombre}?</h3>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Eliminar grupo {grupoAEliminar.nombre}?</h3>
             <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              Esto eliminara el grupo, todos sus alumnos y los registros de asistencia. Esta accion no se puede deshacer.
+              Esto eliminará el grupo, todos sus alumnos y los registros de asistencia. Esta acción no se puede deshacer.
             </p>
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => setGrupoAEliminar(null)} disabled={eliminando} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: eliminando ? "not-allowed" : "pointer" }}>
