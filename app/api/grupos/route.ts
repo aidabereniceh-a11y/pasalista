@@ -1,6 +1,10 @@
+// Colocar en: app/api/grupos/route.ts
 export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+
+const NIVELES_VALIDOS = ["preescolar", "primaria", "secundaria", "media_superior", "superior"];
+const NIVELES_CON_ASIGNATURA = ["secundaria", "media_superior", "superior"];
 
 // GET /api/grupos?maestroId=123
 export async function GET(request: Request) {
@@ -26,14 +30,27 @@ export async function GET(request: Request) {
 
 // POST /api/grupos
 export async function POST(request: Request) {
-  const { maestroId, nombre, grado, grupo, alumnos } = await request.json();
+  const { maestroId, nombre, grado, grupo, alumnos, nivelEducativo, asignatura } = await request.json();
 
   if (!maestroId || !grado || !grupo) {
     return Response.json({ error: "Faltan campos" }, { status: 400 });
   }
 
+  if (nivelEducativo && !NIVELES_VALIDOS.includes(nivelEducativo)) {
+    return Response.json({ error: "Nivel educativo inválido" }, { status: 400 });
+  }
+
   // Si el frontend no manda un nombre, lo generamos con grado + grupo (ej. "1A")
   const nombreGrupo = nombre || `${grado}${grupo}`;
+
+  // La asignatura es opcional y solo aplica a secundaria, media superior y superior
+  const asignaturaLimpia =
+    nivelEducativo &&
+    NIVELES_CON_ASIGNATURA.includes(nivelEducativo) &&
+    typeof asignatura === "string" &&
+    asignatura.trim()
+      ? asignatura.trim().slice(0, 80)
+      : null;
 
   // Verifica el plan del maestro y el limite de grupos si es gratis
   const { data: maestroData } = await supabaseAdmin
@@ -58,7 +75,14 @@ export async function POST(request: Request) {
 
   const { data: grupoData, error } = await supabaseAdmin
     .from("grupos")
-    .insert({ maestro_id: maestroId, nombre: nombreGrupo, grado, grupo })
+    .insert({
+      maestro_id: maestroId,
+      nombre: nombreGrupo,
+      grado,
+      grupo,
+      nivel_educativo: nivelEducativo || null,
+      asignatura: asignaturaLimpia,
+    })
     .select()
     .single();
 

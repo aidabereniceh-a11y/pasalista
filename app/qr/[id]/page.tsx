@@ -3,6 +3,14 @@ export const runtime = "edge";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
+function escapeHtml(texto: string) {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export default function QRPage() {
   const params = useParams();
   const id = params.id as string;
@@ -38,6 +46,7 @@ export default function QRPage() {
   const descargarPDF = async () => {
     setGenerandoPDF(true);
     try {
+      const asignaturaPDF = grupo?.asignatura ? escapeHtml(String(grupo.asignatura)) : "";
       const html = `
         <!DOCTYPE html>
         <html>
@@ -72,13 +81,19 @@ export default function QRPage() {
               color: #64748b;
               margin-top: 2mm;
             }
+            .asignatura {
+              font-size: 9px;
+              font-weight: bold;
+              color: #4f46e5;
+              margin-top: 1mm;
+            }
             @media print {
               @page { size: letter; margin: 10mm; }
             }
           </style>
         </head>
         <body>
-          <h1>Codigos QR - Grupo ${grupo?.nombre || ""}</h1>
+          <h1>Codigos QR - Grupo ${grupo?.nombre || ""}${asignaturaPDF ? " - " + asignaturaPDF : ""}</h1>
           <div class="grid">
             ${alumnos.map(alumno => {
               const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" +
@@ -88,6 +103,7 @@ export default function QRPage() {
                   <div class="nombre">${alumno.nombre}</div>
                   <img class="qr" src="${qrUrl}" alt="${alumno.nombre}" />
                   <div class="grupo">Grupo ${grupo?.nombre || ""}</div>
+                  ${asignaturaPDF ? `<div class="asignatura">${asignaturaPDF}</div>` : ""}
                 </div>
               `;
             }).join("")}
@@ -138,7 +154,9 @@ export default function QRPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h1 style={{ fontSize: "24px", fontWeight: "700", margin: 0 }}>Codigos QR</h1>
-            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>Grupo {grupo.nombre}</p>
+            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>
+              Grupo {grupo.nombre}{grupo.asignatura ? ` · ${grupo.asignatura}` : ""}
+            </p>
           </div>
           <div style={{ display: "flex", gap: "12px" }}>
             <button
@@ -170,6 +188,9 @@ export default function QRPage() {
                 style={{ width: "150px", height: "150px" }}
               />
               <p style={{ color: "#64748b", fontSize: "10px", marginTop: "8px", marginBottom: 0 }}>Grupo {grupo.nombre}</p>
+              {grupo.asignatura && (
+                <p style={{ color: "#4f46e5", fontSize: "11px", fontWeight: "700", marginTop: "2px", marginBottom: 0 }}>{grupo.asignatura}</p>
+              )}
             </div>
           ))}
         </div>

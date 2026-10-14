@@ -12,6 +12,7 @@ export interface Alumno {
 export interface Grupo {
   nombre: string
   grado?: string
+  asignatura?: string
 }
 
 export interface Maestro {
@@ -213,6 +214,16 @@ function estilos(o: OpcionesGafete): string {
       word-break: break-word;
     }
     .grupo-label { font-size: ${(horizontal ? 7.5 : 8.5) * escala}pt; font-weight: bold; }
+    .asignatura {
+      font-size: ${(horizontal ? 8 : 9) * escala}pt;
+      font-weight: bold;
+      line-height: 1.15;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
     .maestro { font-size: ${(horizontal ? 7 : 7.5) * escala}pt; }
     .scan-label { font-size: ${(horizontal ? 6 : 6.5) * escala}pt; font-style: italic; opacity: 0.75; }
     .footer {
@@ -226,6 +237,7 @@ function estilos(o: OpcionesGafete): string {
     .d-clasico { border: 0.5mm solid ${c}; border-radius: 2.5mm; background: #fff; }
     .d-clasico .encabezado, .d-clasico .footer { background: ${c}; color: ${sobreC}; }
     .d-clasico .grupo-label { color: ${c}; }
+    .d-clasico .asignatura { color: ${c}; }
     .d-clasico .maestro { color: #4b5563; }
     .d-clasico .scan-label { color: #6b7280; }
 
@@ -246,6 +258,7 @@ function estilos(o: OpcionesGafete): string {
     .d-infantil .qr-caja { border-radius: 3mm; border: 0.6mm solid ${medio}; }
     .d-infantil .nombre { color: ${c}; }
     .d-infantil .grupo-label { color: #374151; }
+    .d-infantil .asignatura { color: ${c}; }
     .d-infantil .maestro, .d-infantil .scan-label { color: #4b5563; }
     .d-infantil .footer { color: ${c}; }
     .d-infantil .estrella { position: absolute; color: ${c}; font-size: ${10 * escala}pt; line-height: 1; opacity: 0.8; }
@@ -261,6 +274,7 @@ function estilos(o: OpcionesGafete): string {
     .d-minimalista .encabezado { border-bottom: 0.3mm solid #111827; color: #111827; }
     .d-minimalista .footer { border-top: 0.3mm solid #d1d5db; color: #6b7280; }
     .d-minimalista .grupo-label { color: #111827; }
+    .d-minimalista .asignatura { color: #111827; }
     .d-minimalista .maestro, .d-minimalista .scan-label { color: #4b5563; }
 
     @page { size: letter portrait; margin: 8mm; }
@@ -277,6 +291,9 @@ function tarjeta(g: AlumnoConQR, grupo: Grupo, maestro: Maestro, o: OpcionesGafe
   const titulo = tituloGrupo(grupo)
   const encabezado = o.escuela.trim() ? o.escuela.trim().toUpperCase() : 'GAFETE DE ASISTENCIA'
   const pie = o.cicloEscolar.trim() ? `Ciclo ${o.cicloEscolar.trim()} · pasalista.mx` : 'pasalista.mx'
+  const lineaAsignatura = grupo.asignatura && grupo.asignatura.trim()
+    ? `<div class="asignatura">${esc(grupo.asignatura.trim())}</div>`
+    : ''
   const lineaMaestro = o.mostrarMaestro && maestro.nombre
     ? `<div class="maestro">${esc(o.tratamiento || 'Docente')}: ${esc(maestro.nombre)}</div>`
     : ''
@@ -291,6 +308,7 @@ function tarjeta(g: AlumnoConQR, grupo: Grupo, maestro: Maestro, o: OpcionesGafe
         <div class="info">
           <div class="nombre">${esc(g.nombre)}</div>
           <div class="grupo-label">${esc(titulo)}</div>
+          ${lineaAsignatura}
           ${lineaMaestro}
           <div class="scan-label">Escanear al entrar al salón</div>
         </div>

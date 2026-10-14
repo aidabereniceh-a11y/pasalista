@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, useRef } from "react";
 import PersonalizarGafetes from "../../components/PersonalizarGafetes";
 
@@ -8,6 +8,8 @@ export default function Dashboard() {
   const [mostrarFormGrupo, setMostrarFormGrupo] = useState(false);
   const [grado, setGrado] = useState("1");
   const [grupo, setGrupo] = useState("A");
+  const [nivelEducativo, setNivelEducativo] = useState("primaria");
+  const [asignatura, setAsignatura] = useState("");
   const [alumnos, setAlumnos] = useState("");
   const [cargando, setCargando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -22,6 +24,12 @@ export default function Dashboard() {
   const [avisoGafetes, setAvisoGafetes] = useState<{ fondo: string; borde: string; texto: string } | null>(null);
   const avisoProcesado = useRef(false);
   const [gafetesAPersonalizar, setGafetesAPersonalizar] = useState<{ grupo: any; alumnos: any[] } | null>(null);
+
+  const [grupoEditando, setGrupoEditando] = useState<any>(null);
+  const [editNivel, setEditNivel] = useState("primaria");
+  const [editAsignatura, setEditAsignatura] = useState("");
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [mensajeEdicion, setMensajeEdicion] = useState("");
 
   const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
   const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
@@ -124,7 +132,14 @@ export default function Dashboard() {
     const res = await fetch("/api/grupos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id, grado, grupo, alumnos: listaAlumnos }),
+      body: JSON.stringify({
+        maestroId: maestro.id,
+        grado,
+        grupo,
+        alumnos: listaAlumnos,
+        nivelEducativo,
+        asignatura: ["secundaria", "media_superior", "superior"].includes(nivelEducativo) ? asignatura.trim() : "",
+      }),
     });
     const data = await res.json();
 
@@ -138,9 +153,43 @@ export default function Dashboard() {
     setColor("#22c55e");
     setMensaje("Grupo creado correctamente");
     setAlumnos("");
+    setAsignatura("");
     setMostrarFormGrupo(false);
     cargarGrupos(maestro.id);
     setCargando(false);
+  };
+
+  const abrirEdicion = (g: any) => {
+    setGrupoEditando(g);
+    setEditNivel(g.nivel_educativo || "primaria");
+    setEditAsignatura(g.asignatura || "");
+    setMensajeEdicion("");
+  };
+
+  const guardarEdicion = async () => {
+    if (!grupoEditando || guardandoEdicion) return;
+    setGuardandoEdicion(true);
+    setMensajeEdicion("");
+    const gradoNum = parseInt(String(grupoEditando.grado), 10) || 1;
+    const res = await fetch("/api/grupos/nivel", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupo_id: grupoEditando.id,
+        maestro_id: maestro.id,
+        nivel_educativo: editNivel,
+        grado: gradoNum,
+        asignatura: ["secundaria", "media_superior", "superior"].includes(editNivel) ? editAsignatura.trim() : "",
+      }),
+    });
+    const data = await res.json();
+    setGuardandoEdicion(false);
+    if (!res.ok) {
+      setMensajeEdicion(data.error || "No se pudo guardar");
+      return;
+    }
+    setGrupoEditando(null);
+    cargarGrupos(maestro.id);
   };
 
   const eliminarGrupo = async () => {
@@ -399,6 +448,12 @@ export default function Dashboard() {
         {mostrarFormGrupo && (
           <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "24px", marginBottom: "24px" }}>
             <h3 style={{ margin: "0 0 16px 0", fontSize: "16px" }}>Crear nuevo grupo</h3>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
+              <select value={nivelEducativo} onChange={(e) => setNivelEducativo(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px" }}>
+                {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
+              </select>
+            </div>
             <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Grado</label>
@@ -413,6 +468,13 @@ export default function Dashboard() {
                 </select>
               </div>
             </div>
+            {["secundaria", "media_superior", "superior"].includes(nivelEducativo) && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
+                <input value={asignatura} onChange={(e) => setAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
+                <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#64748b" }}>Aparecerá en los códigos QR y en los gafetes.</p>
+              </div>
+            )}
             <div style={{ marginBottom: "16px" }}>
               <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Lista de alumnos (un nombre por linea)</label>
               <textarea value={alumnos} onChange={(e) => setAlumnos(e.target.value)} placeholder={"GARCIA LOPEZ JUAN\nMARTINEZ PEREZ ANA"} rows={8} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box" }} />
@@ -436,11 +498,17 @@ export default function Dashboard() {
               <div key={g.id} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>{g.nombre}</h3>
+                  {g.asignatura && (<p style={{ margin: "4px 0 0 0", color: "#a5b4fc", fontSize: "13px", fontWeight: "600" }}>{g.asignatura}</p>)}
                   <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>Creado el {new Date(g.created_at).toLocaleDateString("es-MX")}</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   <a href={"/asistencia/" + g.id} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
                   <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
+                  <button
+                    onClick={() => abrirEdicion(g)}
+                    style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                    ✏️ Editar
+                  </button>
                   <button
                     onClick={() => abrirGestionAlumnos(g)}
                     style={{ background: "rgba(148,163,184,0.15)", color: "#cbd5e1", border: "1px solid rgba(148,163,184,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
@@ -545,6 +613,34 @@ export default function Dashboard() {
         </div>
       )}
 
+      {grupoEditando && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%" }}>
+            <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "700" }}>Editar grupo</h3>
+            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoEditando.nombre}</p>
+            <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
+            <select value={editNivel} onChange={(e) => setEditNivel(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", marginBottom: "16px" }}>
+              {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
+            </select>
+            {["secundaria", "media_superior", "superior"].includes(editNivel) && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
+                <input value={editAsignatura} onChange={(e) => setEditAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
+              </div>
+            )}
+            {mensajeEdicion && (<div style={{ background: "#ef4444", color: "white", padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "12px" }}>{mensajeEdicion}</div>)}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setGrupoEditando(null)} disabled={guardandoEdicion} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={guardarEdicion} disabled={guardandoEdicion} style={{ flex: 1, padding: "12px", background: guardandoEdicion ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: guardandoEdicion ? "not-allowed" : "pointer" }}>
+                {guardandoEdicion ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {grupoGestionando && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "480px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
@@ -621,7 +717,7 @@ export default function Dashboard() {
 
       {gafetesAPersonalizar && (
         <PersonalizarGafetes
-          grupo={{ nombre: gafetesAPersonalizar.grupo.nombre, grado: gafetesAPersonalizar.grupo.grado }}
+          grupo={{ nombre: gafetesAPersonalizar.grupo.nombre, grado: gafetesAPersonalizar.grupo.grado, asignatura: gafetesAPersonalizar.grupo.asignatura || "" }}
           maestro={{ nombre: maestro.nombre, email: maestro.email }}
           alumnos={gafetesAPersonalizar.alumnos}
           onClose={() => setGafetesAPersonalizar(null)}
