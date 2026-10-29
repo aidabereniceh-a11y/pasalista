@@ -161,3 +161,28 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json(data);
 }
+
+// DELETE { id, maestro_id }: borra un registro, solo si es del maestro que lo pide
+export async function DELETE(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const { id, maestro_id: maestroId } = body;
+
+  if (!id || !maestroId) {
+    return NextResponse.json({ error: "Falta id o maestro_id" }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("diario_maestro")
+    .delete()
+    .eq("id", id)
+    .eq("maestro_id", maestroId)
+    .select("id");
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "No se encontró la entrada del diario o no es tuya" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
+}

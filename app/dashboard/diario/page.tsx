@@ -68,7 +68,8 @@ function textoFechaCorta(fecha: string) {
   if (!fecha) return "";
   const [y, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
   if (!y || !m || !d) return String(fecha);
-  return new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  const texto = new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 function textoMes(mes: string) {
@@ -329,6 +330,37 @@ export default function DiarioDelMaestro() {
     setCargandoHistorial(false);
   };
 
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
+
+  const eliminarRegistro = async (registro: any) => {
+    const maestro = getMaestro();
+    if (!maestro?.id || eliminandoId) return;
+    const tipo = tab === "diario" ? "esta entrada del Diario" : "esta incidencia de la Bitácora";
+    const grupoTexto = grupos.find((g) => String(g.id) === String(registro.grupo_id))?.nombre || "sin grupo";
+    const ok = window.confirm(`¿Eliminar ${tipo}?\n\nFecha: ${textoFechaCorta(registro.fecha)}\nGrupo: ${grupoTexto}\n\nEsta acción no se puede deshacer.`);
+    if (!ok) return;
+
+    setEliminandoId(registro.id);
+    try {
+      const res = await fetch(tab === "diario" ? "/api/diario" : "/api/bitacora", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: registro.id, maestro_id: maestro.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "No se pudo eliminar");
+      if (editandoId === registro.id) limpiarFormulario();
+      if (tab === "diario") setHistorialDiario((prev) => prev.filter((r) => r.id !== registro.id));
+      else setHistorialBitacora((prev) => prev.filter((r) => r.id !== registro.id));
+      setColor("#22c55e");
+      setMensaje("Registro eliminado");
+      setTimeout(() => setMensaje(""), 3000);
+    } catch (err: any) {
+      alert(err.message || "No se pudo eliminar");
+    }
+    setEliminandoId(null);
+  };
+
   const abrirHistorial = () => {
     if (!mostrarHistorial) {
       setHistorialGrupo("");
@@ -581,21 +613,31 @@ export default function DiarioDelMaestro() {
               </p>
             ) : (
               <div style={{ border: "1px solid #f1f5f9", borderRadius: "10px", overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", padding: "8px 12px", background: "#f8fafc", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr auto", gap: "8px", padding: "8px 12px", background: "#f8fafc", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   <span>Fecha</span>
                   <span>Grupo</span>
                   <span></span>
                 </div>
                 {(tab === "diario" ? listaDiario : listaBitacora).map((r) => (
-                  <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", alignItems: "center", padding: "10px 12px", borderTop: "1px solid #f1f5f9" }}>
-                    <span style={{ fontWeight: 700, fontSize: "13px", textTransform: "capitalize" }}>{textoFechaCorta(r.fecha)}</span>
+                  <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr auto", gap: "8px", alignItems: "center", padding: "10px 12px", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontWeight: 700, fontSize: "13px" }}>{textoFechaCorta(r.fecha)}</span>
                     <span style={{ fontSize: "13px", color: nombreGrupo(r.grupo_id) === "Grupo eliminado" ? "#b91c1c" : "#334155" }}>{nombreGrupo(r.grupo_id)}</span>
-                    <button
-                      onClick={() => (tab === "diario" ? editarEntradaDiario(r) : editarEntradaBitacora(r))}
-                      style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-                    >
-                      Ver / Editar
-                    </button>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => (tab === "diario" ? editarEntradaDiario(r) : editarEntradaBitacora(r))}
+                        style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Ver / Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarRegistro(r)}
+                        disabled={eliminandoId === r.id}
+                        title="Eliminar registro"
+                        style={{ background: "#fee2e2", color: "#b91c1c", border: "none", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: eliminandoId === r.id ? "wait" : "pointer" }}
+                      >
+                        {eliminandoId === r.id ? "…" : "🗑️ Eliminar"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
