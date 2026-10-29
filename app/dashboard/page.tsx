@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef } from "react";
 import PersonalizarGafetes from "../../components/PersonalizarGafetes";
 
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [color, setColor] = useState("");
   const [grupoAEliminar, setGrupoAEliminar] = useState<any>(null);
   const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState("");
   const [mostrarModalPago, setMostrarModalPago] = useState(false);
   const [cargandoPago, setCargandoPago] = useState(false);
   const [cargandoCancelar, setCargandoCancelar] = useState(false);
@@ -192,19 +193,47 @@ export default function Dashboard() {
     cargarGrupos(maestro.id);
   };
 
+  const abrirEliminarGrupo = (g: any) => {
+    setErrorEliminar("");
+    setGrupoAEliminar(g);
+  };
+
+  const cerrarEliminarGrupo = () => {
+    if (eliminando) return;
+    setErrorEliminar("");
+    setGrupoAEliminar(null);
+  };
+
   const eliminarGrupo = async () => {
     if (!grupoAEliminar || eliminando) return;
     setEliminando(true);
+    setErrorEliminar("");
+    const grupoBorrado = grupoAEliminar;
 
-    await fetch(`/api/grupos/${grupoAEliminar.id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id }),
-    });
+    try {
+      const res = await fetch(`/api/grupos/${grupoBorrado.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maestroId: maestro.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo eliminar el grupo.");
+      }
 
-    setGrupoAEliminar(null);
-    setEliminando(false);
-    cargarGrupos(maestro.id);
+      // Confirmamos que de verdad ya no aparece en la lista
+      const lista = await cargarGrupos(maestro.id);
+      if (lista.some((x: any) => String(x.id) === String(grupoBorrado.id))) {
+        throw new Error("El grupo no se pudo eliminar. Intenta de nuevo o escríbenos por WhatsApp.");
+      }
+
+      setGrupoAEliminar(null);
+      setAvisoGafetes({ fondo: "rgba(34,197,94,0.15)", borde: "rgba(34,197,94,0.4)", texto: `🗑️ El grupo ${grupoBorrado.nombre} y toda su información se eliminaron correctamente.` });
+    } catch (err: any) {
+      setErrorEliminar(err?.message || "No se pudo eliminar el grupo. Intenta de nuevo.");
+    } finally {
+      setEliminando(false);
+    }
   };
 
   const handleGafetes = async (g: any) => {
@@ -526,7 +555,7 @@ export default function Dashboard() {
                     }}>
                     {generandoGafetesId === g.id ? "Generando..." : g.gafetes_pagado ? "🪪 Descargar gafetes" : "🪪 Gafetes $99"}
                   </button>
-                  <button onClick={() => setGrupoAEliminar(g)} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                  <button onClick={() => abrirEliminarGrupo(g)} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                     Eliminar
                   </button>
                 </div>
@@ -726,18 +755,33 @@ export default function Dashboard() {
 
       {grupoAEliminar && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Eliminar grupo {grupoAEliminar.nombre}?</h3>
-            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              Esto eliminará el grupo, todos sus alumnos y los registros de asistencia. Esta acción no se puede deshacer.
+            <p style={{ margin: "0 0 12px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
+              Se borrará el grupo junto con <strong style={{ color: "#e2e8f0" }}>toda su información</strong>:
             </p>
+            <ul style={{ textAlign: "left", margin: "0 auto 14px", padding: "12px 16px 12px 34px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "10px", color: "#cbd5e1", fontSize: "13px", lineHeight: 1.7, maxWidth: "320px" }}>
+              <li>Alumnos y sus códigos QR</li>
+              <li>Registros de asistencia y salidas al baño</li>
+              <li>Entradas del Diario del Maestro</li>
+              <li>Incidencias de la Bitácora</li>
+              <li>Evaluaciones, materias y tareas</li>
+            </ul>
+            <p style={{ margin: "0 0 20px 0", color: "#fca5a5", fontSize: "13px", fontWeight: 700 }}>
+              Esta acción no se puede deshacer.
+            </p>
+            {errorEliminar && (
+              <div style={{ background: "#ef4444", color: "white", padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, marginBottom: "14px", textAlign: "left" }}>
+                ❌ {errorEliminar}
+              </div>
+            )}
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setGrupoAEliminar(null)} disabled={eliminando} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: eliminando ? "not-allowed" : "pointer" }}>
+              <button onClick={cerrarEliminarGrupo} disabled={eliminando} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: eliminando ? "not-allowed" : "pointer" }}>
                 Cancelar
               </button>
               <button onClick={eliminarGrupo} disabled={eliminando} style={{ flex: 1, padding: "12px", background: eliminando ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: eliminando ? "not-allowed" : "pointer" }}>
-                {eliminando ? "Eliminando..." : "Eliminar"}
+                {eliminando ? "Eliminando..." : errorEliminar ? "Intentar de nuevo" : "Sí, eliminar todo"}
               </button>
             </div>
           </div>
