@@ -45,22 +45,30 @@ function hoyLocal() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Mes actual en formato "2026-09"
-function mesActual() {
-  return hoyLocal().slice(0, 7);
-}
+// Primer mes que aparece en el selector
+const PRIMER_MES = "2026-01";
 
-// Lista de los últimos 24 meses para el selector: [{ valor: "2026-09", texto: "Septiembre 2026" }, ...]
-function ultimosMeses(cantidad = 24) {
+// Meses para el selector, del actual hacia atrás hasta Enero 2026:
+// [{ valor: "2026-09", texto: "Septiembre 2026" }, ..., { valor: "2026-01", texto: "Enero 2026" }]
+function ultimosMeses() {
   const lista: { valor: string; texto: string }[] = [];
   const d = new Date();
   d.setDate(1);
-  for (let i = 0; i < cantidad; i++) {
+  while (true) {
     const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (valor < PRIMER_MES) break;
     lista.push({ valor, texto: `${NOMBRES_MESES[d.getMonth()]} ${d.getFullYear()}` });
     d.setMonth(d.getMonth() - 1);
   }
   return lista;
+}
+
+// "lun 29 sep 2026"
+function textoFechaCorta(fecha: string) {
+  if (!fecha) return "";
+  const [y, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return String(fecha);
+  return new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 function textoMes(mes: string) {
@@ -221,7 +229,7 @@ export default function DiarioDelMaestro() {
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [historialGrupo, setHistorialGrupo] = useState("");
   const [historialAlumno, setHistorialAlumno] = useState("");
-  const [historialMes, setHistorialMes] = useState(mesActual());
+  const [historialMes, setHistorialMes] = useState("");
   const [alumnosHistorial, setAlumnosHistorial] = useState<any[]>([]);
 
   const [fecha, setFecha] = useState(hoyLocal());
@@ -285,7 +293,7 @@ export default function DiarioDelMaestro() {
 
   // Cada vez que cambia el grupo o el mes del historial, se vuelve a pedir a la API
   useEffect(() => {
-    if (!mostrarHistorial || !historialGrupo) return;
+    if (!mostrarHistorial) return;
     cargarHistorial();
   }, [mostrarHistorial, historialGrupo, historialMes, tab]); // eslint-disable-line
 
@@ -300,12 +308,14 @@ export default function DiarioDelMaestro() {
 
   const cargarHistorial = async () => {
     const maestro = getMaestro();
-    if (!maestro?.id || !historialGrupo) return;
+    if (!maestro?.id) return;
     const miPeticion = ++peticionRef.current;
     setCargandoHistorial(true);
     const endpoint = tab === "diario" ? "/api/diario" : "/api/bitacora";
     try {
-      const res = await fetch(`${endpoint}?maestro_id=${maestro.id}&grupo_id=${historialGrupo}&mes=${historialMes}`);
+      // Sin grupo = todos los grupos. Sin mes = los 60 registros más recientes.
+      const filtros = `${historialGrupo ? `&grupo_id=${historialGrupo}` : ""}${historialMes ? `&mes=${historialMes}` : ""}`;
+      const res = await fetch(`${endpoint}?maestro_id=${maestro.id}${filtros}`);
       const data = await res.json();
       if (miPeticion !== peticionRef.current) return; // llegó una respuesta vieja, se ignora
       const lista = Array.isArray(data) ? data : [];
@@ -323,7 +333,7 @@ export default function DiarioDelMaestro() {
     if (!mostrarHistorial) {
       setHistorialGrupo("");
       setHistorialAlumno("");
-      setHistorialMes(mesActual());
+      setHistorialMes("");
       setHistorialDiario([]);
       setHistorialBitacora([]);
     }
@@ -450,10 +460,15 @@ export default function DiarioDelMaestro() {
     border: "none", color: textColor, background: bg, fontWeight: 700, fontSize: "13px", cursor: "pointer",
   });
 
-  const listaDiario = historialDiario.filter((r) => String(r.grupo_id) === String(historialGrupo));
+  const listaDiario = historialDiario.filter((r) => !historialGrupo || String(r.grupo_id) === String(historialGrupo));
   const listaBitacora = historialBitacora.filter(
-    (r) => String(r.grupo_id) === String(historialGrupo) && (!historialAlumno || r.alumno_nombre === historialAlumno)
+    (r) => (!historialGrupo || String(r.grupo_id) === String(historialGrupo)) && (!historialAlumno || r.alumno_nombre === historialAlumno)
   );
+  const nombreGrupo = (grupoId: any) => {
+    if (!grupoId) return "Sin grupo";
+    return grupos.find((g) => String(g.id) === String(grupoId))?.nombre || "Grupo eliminado";
+  };
+  const textoPeriodo = historialMes ? `en ${textoMes(historialMes)}` : "(más recientes)";
   const totalHistorial = tab === "diario" ? listaDiario.length : listaBitacora.length;
 
   if (esPremium === null) return null;
@@ -516,7 +531,7 @@ export default function DiarioDelMaestro() {
                   onChange={(e) => { setHistorialGrupo(e.target.value); setHistorialAlumno(""); }}
                   style={{ ...inputStyle, width: "100%" }}
                 >
-                  <option value="">Selecciona un grupo</option>
+                  <option value="">Todos los grupos</option>
                   {grupos.map((g) => (
                     <option key={g.id} value={g.id}>{g.nombre}</option>
                   ))}
@@ -529,6 +544,7 @@ export default function DiarioDelMaestro() {
                   onChange={(e) => setHistorialMes(e.target.value)}
                   style={{ ...inputStyle, width: "100%" }}
                 >
+                  <option value="">Todos los meses</option>
                   {ultimosMeses().map((m) => (
                     <option key={m.valor} value={m.valor}>{m.texto}</option>
                   ))}
@@ -551,43 +567,39 @@ export default function DiarioDelMaestro() {
               )}
             </div>
 
-            {historialGrupo && !cargandoHistorial && (
+            {!cargandoHistorial && (
               <p style={{ color: "#4f46e5", fontSize: "12px", fontWeight: 700, margin: "0 0 8px" }}>
-                {totalHistorial} {tab === "diario" ? (totalHistorial === 1 ? "entrada" : "entradas") : (totalHistorial === 1 ? "incidencia" : "incidencias")} en {textoMes(historialMes)}
+                {totalHistorial} {tab === "diario" ? (totalHistorial === 1 ? "entrada" : "entradas") : (totalHistorial === 1 ? "incidencia" : "incidencias")} {textoPeriodo}
               </p>
             )}
 
-            {!historialGrupo ? (
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Selecciona un grupo para ver su historial.</p>
-            ) : cargandoHistorial ? (
+            {cargandoHistorial ? (
               <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Cargando…</p>
-            ) : tab === "diario" ? (
-              listaDiario.length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay entradas guardadas para ese grupo en {textoMes(historialMes)}.</p>
-              ) : listaDiario.map((r) => (
-                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>{(r.actividades || "Sin actividades registradas").slice(0, 60)}</div>
+            ) : (tab === "diario" ? listaDiario : listaBitacora).length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
+                {tab === "diario" ? "No hay entradas guardadas" : "No hay incidencias registradas"} para esa selección.
+              </p>
+            ) : (
+              <div style={{ border: "1px solid #f1f5f9", borderRadius: "10px", overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", padding: "8px 12px", background: "#f8fafc", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <span>Fecha</span>
+                  <span>Grupo</span>
+                  <span></span>
+                </div>
+                {(tab === "diario" ? listaDiario : listaBitacora).map((r) => (
+                  <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", alignItems: "center", padding: "10px 12px", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontWeight: 700, fontSize: "13px", textTransform: "capitalize" }}>{textoFechaCorta(r.fecha)}</span>
+                    <span style={{ fontSize: "13px", color: nombreGrupo(r.grupo_id) === "Grupo eliminado" ? "#b91c1c" : "#334155" }}>{nombreGrupo(r.grupo_id)}</span>
+                    <button
+                      onClick={() => (tab === "diario" ? editarEntradaDiario(r) : editarEntradaBitacora(r))}
+                      style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Ver / Editar
+                    </button>
                   </div>
-                  <button onClick={() => editarEntradaDiario(r)} style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                    Editar
-                  </button>
-                </div>
-              ))
-            ) : listaBitacora.length === 0 ? (
-              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>No hay incidencias registradas para esa selección en {textoMes(historialMes)}.</p>
-            ) : listaBitacora.map((r) => (
-              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: "1px solid #f1f5f9" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "13px" }}>{r.fecha} {r.alumno_nombre ? "· " + r.alumno_nombre : ""}</div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{(r.descripcion || "Sin descripción").slice(0, 60)}</div>
-                </div>
-                <button onClick={() => editarEntradaBitacora(r)} style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                  Editar
-                </button>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
