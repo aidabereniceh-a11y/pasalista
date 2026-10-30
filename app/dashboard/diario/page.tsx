@@ -72,6 +72,12 @@ function textoFechaCorta(fecha: string) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+// "3A · Inglés · 🏫 Matutino" — nombre del grupo con asignatura y escuela/turno
+function etiquetaGrupo(g: any): string {
+  if (!g) return "";
+  return [g.nombre, g.asignatura, g.etiqueta ? `🏫 ${g.etiqueta}` : ""].filter(Boolean).join(" · ");
+}
+
 function textoMes(mes: string) {
   const [y, m] = mes.split("-").map(Number);
   return `${NOMBRES_MESES[m - 1]} ${y}`;
@@ -336,7 +342,7 @@ export default function DiarioDelMaestro() {
     const maestro = getMaestro();
     if (!maestro?.id || eliminandoId) return;
     const tipo = tab === "diario" ? "esta entrada del Diario" : "esta incidencia de la Bitácora";
-    const grupoTexto = grupos.find((g) => String(g.id) === String(registro.grupo_id))?.nombre || "sin grupo";
+    const grupoTexto = etiquetaGrupo(grupos.find((g) => String(g.id) === String(registro.grupo_id))) || "sin grupo";
     const ok = window.confirm(`¿Eliminar ${tipo}?\n\nFecha: ${textoFechaCorta(registro.fecha)}\nGrupo: ${grupoTexto}\n\nEsta acción no se puede deshacer.`);
     if (!ok) return;
 
@@ -439,7 +445,7 @@ export default function DiarioDelMaestro() {
 
   const handleWord = () => {
     if (tab === "diario") {
-      const nombreGrupo = grupos.find((g) => String(g.id) === String(grupo))?.nombre || "—";
+      const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(grupo))).replace("🏫 ", "") || "—";
       const html =
         datosWord([["Fecha", fecha], ["Grupo", nombreGrupo], ["Docente", nombreDocente || "—"]]) +
         listaWord("Componentes curriculares trabajados", Object.keys(componentes).filter((k) => componentes[k]), "#15803d") +
@@ -452,7 +458,7 @@ export default function DiarioDelMaestro() {
         datosWord([["Firma del Maestro(a)", firmaDocente || "—"], ["Firma del Director(a)", firmaDirector || "—"]]);
       exportarWord("Diario del Maestro " + fecha, html);
     } else {
-      const nombreGrupo = grupos.find((g) => String(g.id) === String(incGrupo))?.nombre || "—";
+      const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(incGrupo))).replace("🏫 ", "") || "—";
       const html =
         datosWord([["Fecha", incFecha], ["Grupo", nombreGrupo], ["Alumno", incAlumno || "—"]]) +
         listaWord("Situación", SITUACIONES.filter((s) => incSituaciones[s]), "#b45309") +
@@ -498,7 +504,7 @@ export default function DiarioDelMaestro() {
   );
   const nombreGrupo = (grupoId: any) => {
     if (!grupoId) return "Sin grupo";
-    return grupos.find((g) => String(g.id) === String(grupoId))?.nombre || "Grupo eliminado";
+    return etiquetaGrupo(grupos.find((g) => String(g.id) === String(grupoId))) || "Grupo eliminado";
   };
   const textoPeriodo = historialMes ? `en ${textoMes(historialMes)}` : "(más recientes)";
   const totalHistorial = tab === "diario" ? listaDiario.length : listaBitacora.length;
@@ -565,7 +571,7 @@ export default function DiarioDelMaestro() {
                 >
                   <option value="">Todos los grupos</option>
                   {grupos.map((g) => (
-                    <option key={g.id} value={g.id}>{g.nombre}</option>
+                    <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
                   ))}
                 </select>
               </div>
@@ -658,7 +664,7 @@ export default function DiarioDelMaestro() {
                   <select value={grupo} onChange={(e) => setGrupo(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
                     <option value="">Selecciona un grupo…</option>
                     {grupos.map((g) => (
-                      <option key={g.id} value={g.id}>{g.nombre}</option>
+                      <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
                     ))}
                   </select>
                 </div>
@@ -729,7 +735,7 @@ export default function DiarioDelMaestro() {
                   <select value={incGrupo} onChange={(e) => setIncGrupo(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
                     <option value="">Selecciona un grupo</option>
                     {grupos.map((g) => (
-                      <option key={g.id} value={g.id}>{g.nombre}</option>
+                      <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
                     ))}
                   </select>
                 </div>
