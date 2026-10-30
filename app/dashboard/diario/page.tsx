@@ -198,10 +198,49 @@ function exportarWord(titulo: string, html: string) {
   URL.revokeObjectURL(url);
 }
 
+// Evita que textos con < > & rompan el documento
+function escHTML(texto: string): string {
+  return String(texto ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Abre el documento en una ventana nueva y lanza la impresión (Guardar como PDF)
+function imprimirDocumento(titulo: string, html: string): boolean {
+  const ventana = window.open("", "_blank", "width=900,height=750");
+  if (!ventana) return false;
+  ventana.document.open();
+  ventana.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${escHTML(titulo)}</title>
+  <style>
+    @page { size: letter portrait; margin: 14mm; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+    body { font-family: Calibri, Arial, sans-serif; color: #1e293b; margin: 0; padding: 0; }
+    table, tr, td, li { page-break-inside: avoid; break-inside: avoid; }
+    @media screen { body { max-width: 816px; margin: 0 auto; padding: 24px; } }
+  </style>
+</head>
+<body>
+  <div style="border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px;">
+    <h1 style="color:#4f46e5; font-size:22px; margin:0;">${escHTML(titulo)}</h1>
+  </div>
+  ${html}
+  <p style="margin-top:30px; font-size:11px; color:#94a3b8;">Generado desde PasaLista</p>
+  <script>
+    window.onload = function () { setTimeout(function () { window.print(); }, 300); };
+    window.onafterprint = function () { setTimeout(function () { window.close(); }, 300); };
+  </script>
+</body>
+</html>`);
+  ventana.document.close();
+  return true;
+}
+
 function campoWord(label: string, valor: string) {
   return `<div style="margin-bottom:16px;">
     <div style="font-size:12px; font-weight:bold; color:#6366f1; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${label}</div>
-    <div style="font-size:14px; line-height:1.5; background:#f8fafc; border-left:3px solid #c7d2fe; padding:10px 14px; border-radius:4px;">${valor || "—"}</div>
+    <div style="font-size:14px; line-height:1.5; background:#f8fafc; border-left:3px solid #c7d2fe; padding:10px 14px; border-radius:4px; white-space:pre-wrap; word-break:break-word;">${valor ? escHTML(valor) : "—"}</div>
   </div>`;
 }
 
@@ -209,7 +248,7 @@ function datosWord(pares: [string, string][]) {
   const celdas = pares.map(([label, valor]) =>
     `<td style="padding:8px 14px; border:1px solid #e2e8f0; background:#eef2ff;">
       <div style="font-size:11px; color:#4f46e5; font-weight:bold;">${label}</div>
-      <div style="font-size:13px;">${valor || "—"}</div>
+      <div style="font-size:13px;">${valor ? escHTML(valor) : "—"}</div>
     </td>`
   ).join("");
   return `<table style="width:100%; border-collapse:collapse; margin-bottom:20px;"><tr>${celdas}</tr></table>`;
@@ -441,9 +480,8 @@ export default function DiarioDelMaestro() {
     setTimeout(() => setMensaje(""), 3000);
   };
 
-  const imprimirPDF = () => window.print();
-
-  const handleWord = () => {
+  // Arma el mismo documento para PDF y para Word
+  const construirDocumento = (): { titulo: string; html: string } => {
     if (tab === "diario") {
       const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(grupo))).replace("🏫 ", "") || "—";
       const html =
@@ -456,7 +494,7 @@ export default function DiarioDelMaestro() {
         campoWord("Compromisos para la próxima sesión", compromisos) +
         listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309") +
         datosWord([["Firma del Maestro(a)", firmaDocente || "—"], ["Firma del Director(a)", firmaDirector || "—"]]);
-      exportarWord("Diario del Maestro " + fecha, html);
+      return { titulo: "Diario del Maestro " + fecha, html };
     } else {
       const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(incGrupo))).replace("🏫 ", "") || "—";
       const html =
@@ -472,8 +510,19 @@ export default function DiarioDelMaestro() {
           ["Firma Otros", firmas.otros || "—"],
           ["Firma Maestro(a)", firmas.maestro || "—"],
         ]);
-      exportarWord("Bitácora de Incidencias " + incFecha, html);
+      return { titulo: "Bitácora de Incidencias " + incFecha, html };
     }
+  };
+
+  const imprimirPDF = () => {
+    const { titulo, html } = construirDocumento();
+    const ok = imprimirDocumento(titulo, html);
+    if (!ok) alert("Tu navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para pasalista.mx e intenta de nuevo.");
+  };
+
+  const handleWord = () => {
+    const { titulo, html } = construirDocumento();
+    exportarWord(titulo, html);
   };
 
   const guardarEnDrive = () => {
