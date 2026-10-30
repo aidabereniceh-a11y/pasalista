@@ -1,862 +1,824 @@
 ﻿"use client";
-import { useState, useEffect, useRef } from "react";
-import PersonalizarGafetes from "../../components/PersonalizarGafetes";
+import { useState, useRef, useEffect } from "react";
 
-export default function Dashboard() {
-  const [maestro, setMaestro] = useState<any>(null);
-  const [grupos, setGrupos] = useState<any[]>([]);
-  const [mostrarFormGrupo, setMostrarFormGrupo] = useState(false);
-  const [grado, setGrado] = useState("1");
-  const [grupo, setGrupo] = useState("A");
-  const [nivelEducativo, setNivelEducativo] = useState("primaria");
-  const [asignatura, setAsignatura] = useState("");
-  const [etiqueta, setEtiqueta] = useState("");
-  const [grupoDuplicado, setGrupoDuplicado] = useState<string>("");
-  const [alumnos, setAlumnos] = useState("");
-  const [cargando, setCargando] = useState(false);
+const COMPONENTES = [
+  "Lenguaje y Comunicación",
+  "Pensamiento Matemático",
+  "Exploración y comprensión del mundo",
+  "Artes",
+  "Educación Socioemocional",
+  "Educación Física",
+  "Inglés",
+];
+
+const AUTOEVAL = [
+  "Inicio puntual de la actividad",
+  "Se llevó a cabo lo planeado",
+  "El material fue adecuado",
+  "Mi intervención fue adecuada",
+  "Favorecí el desarrollo socioemocional",
+  "Mis consignas fueron claras",
+];
+
+const SITUACIONES = [
+  "Agresión verbal",
+  "Desacato al docente",
+  "Lenguaje obsceno",
+  "Cambio de comportamiento",
+  "Daño material",
+  "Otros",
+  "Agresión física",
+  "Accidente escolar",
+  "Conducta agresiva o peligrosa",
+  "Participó en una pelea",
+  "Incumplimiento de tareas",
+];
+
+const NOMBRES_MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+// Fecha de hoy según la hora local del maestro (no UTC), formato "2026-09-24"
+function hoyLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Primer mes que aparece en el selector
+const PRIMER_MES = "2026-01";
+
+// Meses para el selector, del actual hacia atrás hasta Enero 2026:
+// [{ valor: "2026-09", texto: "Septiembre 2026" }, ..., { valor: "2026-01", texto: "Enero 2026" }]
+function ultimosMeses() {
+  const lista: { valor: string; texto: string }[] = [];
+  const d = new Date();
+  d.setDate(1);
+  while (true) {
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (valor < PRIMER_MES) break;
+    lista.push({ valor, texto: `${NOMBRES_MESES[d.getMonth()]} ${d.getFullYear()}` });
+    d.setMonth(d.getMonth() - 1);
+  }
+  return lista;
+}
+
+// "lun 29 sep 2026"
+function textoFechaCorta(fecha: string) {
+  if (!fecha) return "";
+  const [y, m, d] = String(fecha).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return String(fecha);
+  const texto = new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+// "3A · Inglés · 🏫 Matutino" — nombre del grupo con asignatura y escuela/turno
+function etiquetaGrupo(g: any): string {
+  if (!g) return "";
+  return [g.nombre, g.asignatura, g.etiqueta ? `🏫 ${g.etiqueta}` : ""].filter(Boolean).join(" · ");
+}
+
+function textoMes(mes: string) {
+  const [y, m] = mes.split("-").map(Number);
+  return `${NOMBRES_MESES[m - 1]} ${y}`;
+}
+
+const inputStyle = {
+  padding: "12px",
+  borderRadius: "10px",
+  background: "#fff",
+  border: "1px solid #e2e8f0",
+  color: "#1e293b",
+  fontSize: "14px",
+  boxSizing: "border-box" as const,
+};
+
+function useDictado(onResult: (t: string) => void) {
+  const [grabando, setGrabando] = useState(false);
+  const [soportado, setSoportado] = useState(true);
+  const recRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { setSoportado(false); return; }
+    const rec = new SR();
+    rec.lang = "es-MX";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      let texto = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) texto += e.results[i][0].transcript;
+      onResult(texto);
+    };
+    rec.onend = () => setGrabando(false);
+    recRef.current = rec;
+  }, []); // eslint-disable-line
+
+  const toggle = () => {
+    if (!recRef.current) return;
+    if (grabando) { recRef.current.stop(); setGrabando(false); }
+    else { recRef.current.start(); setGrabando(true); }
+  };
+  return { grabando, soportado, toggle };
+}
+
+function CampoDictado({ label, value, onChange, rows = 3 }: any) {
+  const { grabando, soportado, toggle } = useDictado((texto) =>
+    onChange((prev: string) => (prev ? prev + " " + texto : texto))
+  );
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+        <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600 }}>{label}</label>
+        {soportado ? (
+          <button
+            type="button"
+            onClick={toggle}
+            className="no-print"
+            style={{
+              display: "flex", alignItems: "center", gap: "6px", border: "none", borderRadius: "20px",
+              padding: "5px 12px", fontSize: "12px", fontWeight: 700, cursor: "pointer", color: "white",
+              background: grabando ? "#ef4444" : "#6366f1",
+            }}
+          >
+            {grabando ? "⏹ Grabando…" : "🎤 Dictar"}
+          </button>
+        ) : (
+          <span className="no-print" style={{ fontSize: "11px", color: "#94a3b8" }}>Dictado no disponible en este navegador</span>
+        )}
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        placeholder="Escribe o presiona Dictar para hablar…"
+        style={{ ...inputStyle, width: "100%", resize: "vertical", fontFamily: "inherit", borderColor: grabando ? "#ef4444" : "#e2e8f0" }}
+      />
+    </div>
+  );
+}
+
+function Check2({ checked, onChange, label }: any) {
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 0", fontSize: "14px", color: "#1e293b", cursor: "pointer" }}>
+      <span
+        onClick={() => onChange(!checked)}
+        style={{
+          width: "18px", height: "18px", borderRadius: "5px", flexShrink: 0,
+          border: `2px solid ${checked ? "#6366f1" : "#cbd5e1"}`,
+          background: checked ? "#6366f1" : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {checked && <span style={{ color: "white", fontSize: "12px" }}>✓</span>}
+      </span>
+      {label}
+    </label>
+  );
+}
+
+function exportarWord(titulo: string, html: string) {
+  const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="utf-8"><title>${titulo}</title></head>
+  <body style="font-family:Calibri,Arial,sans-serif; color:#1e293b; padding: 20px;">
+    <div style="border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px;">
+      <h1 style="color:#4f46e5; font-size:22px; margin:0;">${titulo}</h1>
+    </div>
+    ${html}
+    <p style="margin-top:30px; font-size:11px; color:#94a3b8;">Generado desde PasaLista</p>
+  </body></html>`;
+  const blob = new Blob(["﻿", doc], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${titulo.replace(/\s+/g, "_")}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function campoWord(label: string, valor: string) {
+  return `<div style="margin-bottom:16px;">
+    <div style="font-size:12px; font-weight:bold; color:#6366f1; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">${label}</div>
+    <div style="font-size:14px; line-height:1.5; background:#f8fafc; border-left:3px solid #c7d2fe; padding:10px 14px; border-radius:4px;">${valor || "—"}</div>
+  </div>`;
+}
+
+function datosWord(pares: [string, string][]) {
+  const celdas = pares.map(([label, valor]) =>
+    `<td style="padding:8px 14px; border:1px solid #e2e8f0; background:#eef2ff;">
+      <div style="font-size:11px; color:#4f46e5; font-weight:bold;">${label}</div>
+      <div style="font-size:13px;">${valor || "—"}</div>
+    </td>`
+  ).join("");
+  return `<table style="width:100%; border-collapse:collapse; margin-bottom:20px;"><tr>${celdas}</tr></table>`;
+}
+
+function listaWord(titulo: string, items: string[], color: string) {
+  const filas = items.length
+    ? items.map((i) => `<li style="margin-bottom:4px;">${i}</li>`).join("")
+    : `<li style="color:#94a3b8;">Ninguno marcado</li>`;
+  return `<div style="margin-bottom:20px;">
+    <div style="font-size:13px; font-weight:bold; color:${color}; margin-bottom:6px;">${titulo}</div>
+    <ul style="margin:0; padding-left:20px; font-size:13px;">${filas}</ul>
+  </div>`;
+}
+
+export default function DiarioDelMaestro() {
+  const [tab, setTab] = useState("diario");
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [historialDiario, setHistorialDiario] = useState<any[]>([]);
+  const [historialBitacora, setHistorialBitacora] = useState<any[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const peticionRef = useRef(0);
+
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [historialGrupo, setHistorialGrupo] = useState("");
+  const [historialAlumno, setHistorialAlumno] = useState("");
+  const [historialMes, setHistorialMes] = useState("");
+  const [alumnosHistorial, setAlumnosHistorial] = useState<any[]>([]);
+
+  const [fecha, setFecha] = useState(hoyLocal());
+  const [grupo, setGrupo] = useState("");
+  const [nombreDocente, setNombreDocente] = useState("");
+  const [firmaDocente, setFirmaDocente] = useState("");
+  const [firmaDirector, setFirmaDirector] = useState("");
+  const [componentes, setComponentes] = useState<any>({});
+  const [actividades, setActividades] = useState("");
+  const [logros, setLogros] = useState("");
+  const [retos, setRetos] = useState("");
+  const [observaciones, setObservaciones] = useState("");
+  const [compromisos, setCompromisos] = useState("");
+  const [autoeval, setAutoeval] = useState<any>({});
+
+  const [incFecha, setIncFecha] = useState(hoyLocal());
+  const [incGrupo, setIncGrupo] = useState("");
+  const [incAlumno, setIncAlumno] = useState("");
+  const [incSituaciones, setIncSituaciones] = useState<any>({});
+  const [incDescripcion, setIncDescripcion] = useState("");
+  const [incAccion, setIncAccion] = useState("");
+  const [incNotifico, setIncNotifico] = useState(false);
+  const [firmas, setFirmas] = useState<any>({});
+
+  const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [color, setColor] = useState("");
-  const [grupoAEliminar, setGrupoAEliminar] = useState<any>(null);
-  const [eliminando, setEliminando] = useState(false);
-  const [errorEliminar, setErrorEliminar] = useState("");
-  const [mostrarModalPago, setMostrarModalPago] = useState(false);
-  const [cargandoPago, setCargandoPago] = useState(false);
-  const [cargandoCancelar, setCargandoCancelar] = useState(false);
-  const [mostrarConfirmCancelar, setMostrarConfirmCancelar] = useState(false);
-  const [generandoGafetesId, setGenerandoGafetesId] = useState<number | null>(null);
-  const [avisoGafetes, setAvisoGafetes] = useState<{ fondo: string; borde: string; texto: string } | null>(null);
-  const avisoProcesado = useRef(false);
-  const [gafetesAPersonalizar, setGafetesAPersonalizar] = useState<{ grupo: any; alumnos: any[] } | null>(null);
+  const [grupos, setGrupos] = useState<any[]>([]);
+  const [alumnosDelGrupo, setAlumnosDelGrupo] = useState<any[]>([]);
+  const [esPremium, setEsPremium] = useState<boolean | null>(null);
 
-  const [grupoEditando, setGrupoEditando] = useState<any>(null);
-  const [editNivel, setEditNivel] = useState("primaria");
-  const [editAsignatura, setEditAsignatura] = useState("");
-  const [editEtiqueta, setEditEtiqueta] = useState("");
-  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
-  const [mensajeEdicion, setMensajeEdicion] = useState("");
-
-  const [grupoGestionando, setGrupoGestionando] = useState<any>(null);
-  const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
-  const [cargandoAlumnosGestion, setCargandoAlumnosGestion] = useState(false);
-  const [nuevosAlumnos, setNuevosAlumnos] = useState("");
-  const [agregandoAlumnos, setAgregandoAlumnos] = useState(false);
-  const [mensajeGestion, setMensajeGestion] = useState("");
-  const [colorGestion, setColorGestion] = useState("");
-  const [dandoDeBajaId, setDandoDeBajaId] = useState<number | null>(null);
-  const [alumnoABaja, setAlumnoABaja] = useState<any>(null);
+  const getMaestro = () => {
+    const data = localStorage.getItem("maestro");
+    return data ? JSON.parse(data) : null;
+  };
 
   useEffect(() => {
-    const data = localStorage.getItem("maestro");
-    if (!data) { window.location.href = "/login"; return; }
-    const m = JSON.parse(data);
-    verificarVigenciaPremium(m);
+    const maestro = getMaestro();
+    if (!maestro?.id) { window.location.href = "/login"; return; }
+    setEsPremium(maestro.plan === "premium");
+    fetch(`/api/grupos?maestroId=${maestro.id}`)
+      .then((res) => res.json())
+      .then((data) => setGrupos(data.grupos || []));
   }, []);
 
-  const verificarVigenciaPremium = async (m: any) => {
-    try {
-      const res = await fetch("/api/verificar-vigencia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maestroId: m.id }),
-      });
-      const data = await res.json();
-      if (res.ok && data.maestro) {
-        localStorage.setItem("maestro", JSON.stringify(data.maestro));
-        setMaestro(data.maestro);
-        cargarGrupos(data.maestro.id);
-        return;
-      }
-    } catch {
-      // si falla la verificacion, seguimos con los datos locales
-    }
-    setMaestro(m);
-    cargarGrupos(m.id);
-  };
-
-  const cargarGrupos = async (maestroId: number) => {
-    const res = await fetch(`/api/grupos?maestroId=${maestroId}`);
-    const data = await res.json();
-    const lista = data.grupos || [];
-    setGrupos(lista);
-    return lista as any[];
-  };
-
-  // Al regresar de Mercado Pago (?gafetes=ok|pendiente|error&grupo=ID)
   useEffect(() => {
-    if (!maestro?.id || avisoProcesado.current) return;
-    const params = new URLSearchParams(window.location.search);
-    const estado = params.get("gafetes");
-    if (!estado) return;
-    avisoProcesado.current = true;
-    const grupoId = params.get("grupo");
-    window.history.replaceState(null, "", "/dashboard");
+    const maestro = getMaestro();
+    if (!maestro?.id || !incGrupo) { setAlumnosDelGrupo([]); return; }
+    fetch(`/api/alumnos?grupoId=${incGrupo}&maestroId=${maestro.id}`)
+      .then((res) => res.json())
+      .then((data) => setAlumnosDelGrupo((data.alumnos || []).filter((a: any) => a.activo !== false)));
+  }, [incGrupo]);
 
-    if (estado === "error") {
-      setAvisoGafetes({ fondo: "rgba(239,68,68,0.15)", borde: "rgba(239,68,68,0.4)", texto: "❌ El pago de los gafetes no se completó. No se hizo ningún cobro. Puedes intentarlo de nuevo." });
-      return;
-    }
+  useEffect(() => {
+    const maestro = getMaestro();
+    if (!maestro?.id || !historialGrupo) { setAlumnosHistorial([]); return; }
+    fetch(`/api/alumnos?grupoId=${historialGrupo}&maestroId=${maestro.id}`)
+      .then((res) => res.json())
+      .then((data) => setAlumnosHistorial((data.alumnos || []).filter((a: any) => a.activo !== false)));
+  }, [historialGrupo]);
 
-    if (estado === "pendiente") {
-      setAvisoGafetes({ fondo: "rgba(245,158,11,0.15)", borde: "rgba(245,158,11,0.4)", texto: "⏳ Tu pago está pendiente (OXXO o transferencia). En cuanto Mercado Pago lo confirme, se activará el botón \"Descargar gafetes\". Puede tardar hasta 1 día hábil." });
-      return;
-    }
+  // Cada vez que cambia el grupo o el mes del historial, se vuelve a pedir a la API
+  useEffect(() => {
+    if (!mostrarHistorial) return;
+    cargarHistorial();
+  }, [mostrarHistorial, historialGrupo, historialMes, tab]); // eslint-disable-line
 
-    if (estado === "ok") {
-      setAvisoGafetes({ fondo: "rgba(99,102,241,0.15)", borde: "rgba(99,102,241,0.4)", texto: "✅ Pago recibido. Estamos confirmando tus gafetes con Mercado Pago…" });
-      let intentos = 0;
-      const revisar = async () => {
-        intentos++;
-        try {
-          const lista = await cargarGrupos(maestro.id);
-          const g = lista.find((x: any) => String(x.id) === String(grupoId));
-          if (g?.gafetes_pagado) {
-            setAvisoGafetes({ fondo: "rgba(34,197,94,0.15)", borde: "rgba(34,197,94,0.4)", texto: `🎉 ¡Listo! Los gafetes de ${g.nombre} ya están desbloqueados. Da clic en "🪪 Descargar gafetes".` });
-            return;
-          }
-        } catch {
-          // si falla una revisión, seguimos intentando
-        }
-        if (intentos < 20) {
-          setTimeout(revisar, 3000);
-        } else {
-          setAvisoGafetes({ fondo: "rgba(245,158,11,0.15)", borde: "rgba(245,158,11,0.4)", texto: "⏳ Tu pago se recibió, pero la confirmación está tardando. Recarga esta página en unos minutos. Si en 1 hora no se desbloquean tus gafetes, escríbenos por WhatsApp y lo revisamos." });
-        }
-      };
-      revisar();
-    }
-  }, [maestro?.id]); // eslint-disable-line
-
-  const crearGrupo = async (confirmarDuplicado = false) => {
-    if (cargando) return;
-    if (!alumnos.trim()) { setColor("#ef4444"); setMensaje("Agrega los nombres de los alumnos"); return; }
-    setCargando(true);
-    setMensaje("");
-
-    const listaAlumnos = alumnos.split("\n");
-    const res = await fetch("/api/grupos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        maestroId: maestro.id,
-        grado,
-        grupo,
-        alumnos: listaAlumnos,
-        nivelEducativo,
-        asignatura: ["secundaria", "media_superior", "superior"].includes(nivelEducativo) ? asignatura.trim() : "",
-        etiqueta: etiqueta.trim(),
-        confirmarDuplicado,
-      }),
-    });
-    const data = await res.json();
-
-    // Ya existe un grupo igual: preguntamos antes de crear otro
-    if (res.status === 409 && data.duplicado) {
-      setGrupoDuplicado(data.error || "Ya tienes un grupo con ese nombre.");
-      setCargando(false);
-      return;
-    }
-
-    if (!res.ok) {
-      setColor("#ef4444");
-      setMensaje(data.error || "Error al crear el grupo");
-      setCargando(false);
-      return;
-    }
-
-    setColor("#22c55e");
-    setMensaje("Grupo creado correctamente");
-    setAlumnos("");
-    setAsignatura("");
-    setEtiqueta("");
-    setGrupoDuplicado("");
-    setMostrarFormGrupo(false);
-    cargarGrupos(maestro.id);
-    setCargando(false);
+  const limpiarFormulario = () => {
+    setEditandoId(null);
+    setFecha(hoyLocal());
+    setGrupo(""); setNombreDocente(""); setFirmaDocente(""); setFirmaDirector(""); setComponentes({}); setActividades(""); setLogros(""); setRetos("");
+    setObservaciones(""); setCompromisos(""); setAutoeval({});
+    setIncFecha(hoyLocal());
+    setIncGrupo(""); setIncAlumno(""); setIncSituaciones({}); setIncDescripcion(""); setIncAccion(""); setIncNotifico(false); setFirmas({});
   };
 
-  const abrirEdicion = (g: any) => {
-    setGrupoEditando(g);
-    setEditNivel(g.nivel_educativo || "primaria");
-    setEditAsignatura(g.asignatura || "");
-    setEditEtiqueta(g.etiqueta || "");
-    setMensajeEdicion("");
-  };
-
-  const guardarEdicion = async () => {
-    if (!grupoEditando || guardandoEdicion) return;
-    setGuardandoEdicion(true);
-    setMensajeEdicion("");
-    const gradoNum = parseInt(String(grupoEditando.grado), 10) || 1;
-    const res = await fetch("/api/grupos/nivel", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grupo_id: grupoEditando.id,
-        maestro_id: maestro.id,
-        nivel_educativo: editNivel,
-        grado: gradoNum,
-        asignatura: ["secundaria", "media_superior", "superior"].includes(editNivel) ? editAsignatura.trim() : "",
-        etiqueta: editEtiqueta.trim(),
-      }),
-    });
-    const data = await res.json();
-    setGuardandoEdicion(false);
-    if (!res.ok) {
-      setMensajeEdicion(data.error || "No se pudo guardar");
-      return;
-    }
-    setGrupoEditando(null);
-    cargarGrupos(maestro.id);
-  };
-
-  const abrirEliminarGrupo = (g: any) => {
-    setErrorEliminar("");
-    setGrupoAEliminar(g);
-  };
-
-  const cerrarEliminarGrupo = () => {
-    if (eliminando) return;
-    setErrorEliminar("");
-    setGrupoAEliminar(null);
-  };
-
-  const eliminarGrupo = async () => {
-    if (!grupoAEliminar || eliminando) return;
-    setEliminando(true);
-    setErrorEliminar("");
-    const grupoBorrado = grupoAEliminar;
-
+  const cargarHistorial = async () => {
+    const maestro = getMaestro();
+    if (!maestro?.id) return;
+    const miPeticion = ++peticionRef.current;
+    setCargandoHistorial(true);
+    const endpoint = tab === "diario" ? "/api/diario" : "/api/bitacora";
     try {
-      const res = await fetch(`/api/grupos/${grupoBorrado.id}`, {
+      // Sin grupo = todos los grupos. Sin mes = los 60 registros más recientes.
+      const filtros = `${historialGrupo ? `&grupo_id=${historialGrupo}` : ""}${historialMes ? `&mes=${historialMes}` : ""}`;
+      const res = await fetch(`${endpoint}?maestro_id=${maestro.id}${filtros}`);
+      const data = await res.json();
+      if (miPeticion !== peticionRef.current) return; // llegó una respuesta vieja, se ignora
+      const lista = Array.isArray(data) ? data : [];
+      if (tab === "diario") setHistorialDiario(lista);
+      else setHistorialBitacora(lista);
+    } catch {
+      if (miPeticion !== peticionRef.current) return;
+      if (tab === "diario") setHistorialDiario([]);
+      else setHistorialBitacora([]);
+    }
+    setCargandoHistorial(false);
+  };
+
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
+
+  const eliminarRegistro = async (registro: any) => {
+    const maestro = getMaestro();
+    if (!maestro?.id || eliminandoId) return;
+    const tipo = tab === "diario" ? "esta entrada del Diario" : "esta incidencia de la Bitácora";
+    const grupoTexto = etiquetaGrupo(grupos.find((g) => String(g.id) === String(registro.grupo_id))) || "sin grupo";
+    const ok = window.confirm(`¿Eliminar ${tipo}?\n\nFecha: ${textoFechaCorta(registro.fecha)}\nGrupo: ${grupoTexto}\n\nEsta acción no se puede deshacer.`);
+    if (!ok) return;
+
+    setEliminandoId(registro.id);
+    try {
+      const res = await fetch(tab === "diario" ? "/api/diario" : "/api/bitacora", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maestroId: maestro.id }),
+        body: JSON.stringify({ id: registro.id, maestro_id: maestro.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || "No se pudo eliminar el grupo.");
-      }
-
-      // Confirmamos que de verdad ya no aparece en la lista
-      const lista = await cargarGrupos(maestro.id);
-      if (lista.some((x: any) => String(x.id) === String(grupoBorrado.id))) {
-        throw new Error("El grupo no se pudo eliminar. Intenta de nuevo o escríbenos por WhatsApp.");
-      }
-
-      setGrupoAEliminar(null);
-      setAvisoGafetes({ fondo: "rgba(34,197,94,0.15)", borde: "rgba(34,197,94,0.4)", texto: `🗑️ El grupo ${grupoBorrado.nombre} y toda su información se eliminaron correctamente.` });
+      if (!res.ok) throw new Error(data.error || "No se pudo eliminar");
+      if (editandoId === registro.id) limpiarFormulario();
+      if (tab === "diario") setHistorialDiario((prev) => prev.filter((r) => r.id !== registro.id));
+      else setHistorialBitacora((prev) => prev.filter((r) => r.id !== registro.id));
+      setColor("#22c55e");
+      setMensaje("Registro eliminado");
+      setTimeout(() => setMensaje(""), 3000);
     } catch (err: any) {
-      setErrorEliminar(err?.message || "No se pudo eliminar el grupo. Intenta de nuevo.");
-    } finally {
-      setEliminando(false);
+      alert(err.message || "No se pudo eliminar");
+    }
+    setEliminandoId(null);
+  };
+
+  const abrirHistorial = () => {
+    if (!mostrarHistorial) {
+      setHistorialGrupo("");
+      setHistorialAlumno("");
+      setHistorialMes("");
+      setHistorialDiario([]);
+      setHistorialBitacora([]);
+    }
+    setMostrarHistorial(!mostrarHistorial);
+  };
+
+  const editarEntradaDiario = (registro: any) => {
+    setEditandoId(registro.id);
+    setFecha(registro.fecha || hoyLocal());
+    setGrupo(registro.grupo_id || "");
+    setNombreDocente(registro.nombre_docente || "");
+    setFirmaDocente(registro.firma_docente || "");
+    setFirmaDirector(registro.firma_director || "");
+    setComponentes(registro.componentes || {});
+    setActividades(registro.actividades || "");
+    setLogros(registro.logros || "");
+    setRetos(registro.retos || "");
+    setObservaciones(registro.observaciones || "");
+    setCompromisos(registro.compromisos || "");
+    setAutoeval(registro.autoevaluacion || {});
+    setMostrarHistorial(false);
+  };
+
+  const editarEntradaBitacora = (registro: any) => {
+    setEditandoId(registro.id);
+    setIncFecha(registro.fecha || hoyLocal());
+    setIncGrupo(registro.grupo_id || "");
+    setIncAlumno(registro.alumno_nombre || "");
+    setIncSituaciones(registro.situaciones || {});
+    setIncDescripcion(registro.descripcion || "");
+    setIncAccion(registro.accion || "");
+    setIncNotifico(!!registro.notifico_padres);
+    setFirmas(registro.firmas || {});
+    setMostrarHistorial(false);
+  };
+
+  const guardar = async () => {
+    if (guardando) return;
+    const maestro = getMaestro();
+    if (!maestro?.id) { window.location.href = "/login"; return; }
+
+    setGuardando(true);
+    setMensaje("");
+    const endpoint = tab === "diario" ? "/api/diario" : "/api/bitacora";
+    const metodo = editandoId ? "PUT" : "POST";
+    const payload =
+      tab === "diario"
+        ? { id: editandoId, maestro_id: maestro.id, grupo_id: grupo || null, fecha, nombre_docente: nombreDocente, firma_docente: firmaDocente, firma_director: firmaDirector, componentes, actividades, logros, retos, observaciones, compromisos, autoevaluacion: autoeval }
+        : { id: editandoId, maestro_id: maestro.id, grupo_id: incGrupo || null, alumno_nombre: incAlumno, fecha: incFecha, situaciones: incSituaciones, descripcion: incDescripcion, accion: incAccion, notifico_padres: incNotifico, firmas };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: metodo,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Error al guardar");
+      setColor("#22c55e");
+      setMensaje(editandoId ? "Actualizado correctamente" : "Guardado correctamente");
+      setEditandoId(null);
+    } catch (err: any) {
+      setColor("#ef4444");
+      setMensaje(err.message || "No se pudo guardar");
+    }
+    setGuardando(false);
+    setTimeout(() => setMensaje(""), 3000);
+  };
+
+  const imprimirPDF = () => window.print();
+
+  const handleWord = () => {
+    if (tab === "diario") {
+      const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(grupo))).replace("🏫 ", "") || "—";
+      const html =
+        datosWord([["Fecha", fecha], ["Grupo", nombreGrupo], ["Docente", nombreDocente || "—"]]) +
+        listaWord("Componentes curriculares trabajados", Object.keys(componentes).filter((k) => componentes[k]), "#15803d") +
+        campoWord("Actividades realizadas", actividades) +
+        campoWord("Logros del día", logros) +
+        campoWord("Retos u obstáculos", retos) +
+        campoWord("Observaciones sobre el grupo", observaciones) +
+        campoWord("Compromisos para la próxima sesión", compromisos) +
+        listaWord("Autoevaluación", AUTOEVAL.filter((a) => autoeval[a]), "#b45309") +
+        datosWord([["Firma del Maestro(a)", firmaDocente || "—"], ["Firma del Director(a)", firmaDirector || "—"]]);
+      exportarWord("Diario del Maestro " + fecha, html);
+    } else {
+      const nombreGrupo = etiquetaGrupo(grupos.find((g) => String(g.id) === String(incGrupo))).replace("🏫 ", "") || "—";
+      const html =
+        datosWord([["Fecha", incFecha], ["Grupo", nombreGrupo], ["Alumno", incAlumno || "—"]]) +
+        listaWord("Situación", SITUACIONES.filter((s) => incSituaciones[s]), "#b45309") +
+        campoWord("Descripción del incidente", incDescripcion) +
+        campoWord("Acción tomada", incAccion) +
+        datosWord([["Se notificó a los padres", incNotifico ? "Sí" : "No"]]) +
+        datosWord([
+          ["Firma Alumno", firmas.alumno || "—"],
+          ["Firma Director(a)", firmas.director || "—"],
+          ["Firma Padre o tutor", firmas.padre || "—"],
+          ["Firma Otros", firmas.otros || "—"],
+          ["Firma Maestro(a)", firmas.maestro || "—"],
+        ]);
+      exportarWord("Bitácora de Incidencias " + incFecha, html);
     }
   };
 
-  const handleGafetes = async (g: any) => {
-    if (g.gafetes_pagado) {
-      if (generandoGafetesId) return;
-      setGenerandoGafetesId(g.id);
-      try {
-        // Los alumnos se piden a la API (con service role). La consulta directa a Supabase
-        // desde el navegador regresaba una lista vacía por el RLS, y por eso los gafetes salían en blanco.
-        const res = await fetch(`/api/alumnos?grupoId=${g.id}&maestroId=${maestro.id}`);
-        const data = await res.json();
-        const alumnosGrupo = (data.alumnos || [])
-          .filter((a: any) => a.activo !== false)
-          .map((a: any) => ({ id: a.id, nombre: a.nombre }));
-
-        if (!res.ok || alumnosGrupo.length === 0) {
-          alert(data.error || "Este grupo no tiene alumnos activos para generar gafetes.");
-          return;
-        }
-
-        // Abre la ventana para elegir color, diseño y tamaño antes de imprimir
-        setGafetesAPersonalizar({ grupo: g, alumnos: alumnosGrupo });
-      } catch {
-        alert("No se pudieron generar los gafetes. Intenta de nuevo.");
-      } finally {
-        setGenerandoGafetesId(null);
-      }
-      return;
-    }
-
-    const res = await fetch("/api/gafetes/pago", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grupoId: g.id,
-        grupoNombre: g.nombre,
-        maestroId: maestro.id,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.url) {
-      alert(data.error || "No se pudo iniciar el pago. Intenta de nuevo.");
-      return;
-    }
-    window.location.href = data.url;
+  const guardarEnDrive = () => {
+    alert("Para guardar en Drive, primero conecta tu cuenta de Google desde tu perfil (próximamente).");
   };
 
-  const irAPagarManual = async () => {
-    setCargandoPago(true);
-    const respuesta = await fetch("/api/pago", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id, maestroEmail: maestro.email }),
-    });
-    const data = await respuesta.json();
-    window.location.href = data.url;
+  const tabBtn = (id: string, texto: string) => (
+    <button
+      onClick={() => { setTab(id); setMostrarHistorial(false); limpiarFormulario(); }}
+      style={{
+        padding: "10px 20px", borderRadius: "10px", border: "none", fontWeight: 700, fontSize: "14px", cursor: "pointer",
+        background: tab === id ? "#6366f1" : "#e2e8f0",
+        color: tab === id ? "white" : "#475569",
+      }}
+    >
+      {texto}
+    </button>
+  );
+
+  const btnAccion = (bg: string, textColor: string) => ({
+    display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", borderRadius: "10px",
+    border: "none", color: textColor, background: bg, fontWeight: 700, fontSize: "13px", cursor: "pointer",
+  });
+
+  const listaDiario = historialDiario.filter((r) => !historialGrupo || String(r.grupo_id) === String(historialGrupo));
+  const listaBitacora = historialBitacora.filter(
+    (r) => (!historialGrupo || String(r.grupo_id) === String(historialGrupo)) && (!historialAlumno || r.alumno_nombre === historialAlumno)
+  );
+  const nombreGrupo = (grupoId: any) => {
+    if (!grupoId) return "Sin grupo";
+    return etiquetaGrupo(grupos.find((g) => String(g.id) === String(grupoId))) || "Grupo eliminado";
   };
+  const textoPeriodo = historialMes ? `en ${textoMes(historialMes)}` : "(más recientes)";
+  const totalHistorial = tab === "diario" ? listaDiario.length : listaBitacora.length;
 
-  const irASuscripcion = async () => {
-    setCargandoPago(true);
-    const respuesta = await fetch("/api/pago/suscripcion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id, maestroEmail: maestro.email }),
-    });
-    const data = await respuesta.json();
-    window.location.href = data.url;
-  };
+  if (esPremium === null) return null;
 
-  const cancelarSuscripcion = async () => {
-    if (cargandoCancelar) return;
-    setCargandoCancelar(true);
-    const res = await fetch("/api/cancelar-suscripcion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id }),
-    });
-    if (res.ok) {
-      const m = { ...maestro, preapproval_id: null };
-      setMaestro(m);
-      localStorage.setItem("maestro", JSON.stringify(m));
-    }
-    setMostrarConfirmCancelar(false);
-    setCargandoCancelar(false);
-  };
-
-  const cerrarSesion = () => { localStorage.removeItem("maestro"); window.location.href = "/login"; };
-
-  const abrirGestionAlumnos = (g: any) => {
-    setGrupoGestionando(g);
-    setNuevosAlumnos("");
-    setMensajeGestion("");
-    cargarAlumnosGestion(g.id);
-  };
-
-  const cargarAlumnosGestion = async (grupoId: number) => {
-    setCargandoAlumnosGestion(true);
-    const res = await fetch(`/api/alumnos?grupoId=${grupoId}&maestroId=${maestro.id}`);
-    const data = await res.json();
-    setAlumnosGestion((data.alumnos || []).filter((a: any) => a.activo !== false));
-    setCargandoAlumnosGestion(false);
-  };
-
-  const agregarAlumnosGestion = async () => {
-    if (agregandoAlumnos || !grupoGestionando) return;
-    if (!nuevosAlumnos.trim()) {
-      setColorGestion("#ef4444");
-      setMensajeGestion("Agrega al menos un nombre");
-      return;
-    }
-    setAgregandoAlumnos(true);
-    setMensajeGestion("");
-
-    const res = await fetch("/api/alumnos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grupoId: grupoGestionando.id,
-        maestroId: maestro.id,
-        nombres: nuevosAlumnos.split("\n"),
-      }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      setColorGestion("#ef4444");
-      setMensajeGestion(data.error || "Error al agregar alumnos");
-      setAgregandoAlumnos(false);
-      return;
-    }
-
-    setColorGestion("#22c55e");
-    setMensajeGestion("Alumnos agregados correctamente");
-    setNuevosAlumnos("");
-    cargarAlumnosGestion(grupoGestionando.id);
-    setAgregandoAlumnos(false);
-  };
-
-  const confirmarBajaAlumno = async () => {
-    if (!alumnoABaja || !grupoGestionando || dandoDeBajaId) return;
-    setDandoDeBajaId(alumnoABaja.id);
-
-    const res = await fetch(`/api/alumnos/${alumnoABaja.id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      alert(data.error || "No se pudo dar de baja al alumno");
-    }
-
-    setAlumnoABaja(null);
-    setDandoDeBajaId(null);
-    cargarAlumnosGestion(grupoGestionando.id);
-  };
-
-  // Grupos que se ven iguales (mismo nombre, asignatura y escuela/turno)
-  const claveGrupo = (g: any) =>
-    [g.nombre, g.asignatura, g.etiqueta]
-      .map((t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase())
-      .join("|");
-  const conteoClaves = grupos.reduce((acc: Record<string, number>, g: any) => {
-    const k = claveGrupo(g);
-    acc[k] = (acc[k] || 0) + 1;
-    return acc;
-  }, {});
-
-  if (!maestro) return null;
+  if (!esPremium) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#dbeafe", fontFamily: "Arial, sans-serif", padding: "24px", color: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ background: "#fff", borderRadius: "16px", padding: "40px", maxWidth: "420px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔒</div>
+          <h1 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 8px" }}>Función Premium</h1>
+          <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "24px" }}>
+            El Diario del Maestro y la Bitácora de incidencias están disponibles solo para maestros con plan Premium ($49/mes).
+          </p>
+          <a href="/dashboard" style={{ display: "inline-block", background: "#6366f1", color: "white", padding: "12px 24px", borderRadius: "10px", fontSize: "14px", fontWeight: 700, textDecoration: "none" }}>
+            Volver al dashboard
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", fontFamily: "Arial, sans-serif", padding: "24px", color: "white" }}>
-      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "12px" }}>
-          <div>
-            <h1 style={{ fontSize: "24px", fontWeight: "700", margin: 0 }}>Asistencia QR</h1>
-            <p style={{ color: "#94a3b8", fontSize: "14px", margin: "4px 0 0 0" }}>Bienvenido, {maestro.nombre}</p>
-          </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <span style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>
-                  {maestro.plan === "premium" ? "Premium" : "Gratis"}
-                </span>
-                {maestro.plan === "premium" && maestro.premium_hasta && (
-                  <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Vence el {new Date(maestro.premium_hasta).toLocaleDateString("es-MX")}
-                  </span>
-                )}
-              </div>
-              {maestro.plan === "premium" && maestro.preapproval_id && (
-                <button
-                  onClick={() => setMostrarConfirmCancelar(true)}
-                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "11px", cursor: "pointer", padding: "2px 0", textDecoration: "underline", marginTop: "2px" }}
-                >
-                  cancelar suscripción
-                </button>
-              )}
-            </div>
-            {maestro.plan !== "premium" && (
-              <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                Actualizar a Premium $49/mes
-              </button>
-            )}
-            {maestro.plan === "premium" ? (
-              <a href="/dashboard/diario" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>
-                📓 Bitácora y Diario del Maestro
-              </a>
-            ) : (
-              <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
-                🔒 Bitácora y Diario del Maestro
-              </button>
-            )}
-            <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
-              Cerrar sesion
-            </button>
-          </div>
+    <main style={{ minHeight: "100vh", background: "#dbeafe", fontFamily: "Arial, sans-serif", padding: "24px", color: "#1e293b" }}>
+      <style>{`@media print { .no-print { display: none !important; } }`}</style>
+      <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0 }}>{tab === "diario" ? "Diario" : "Bitácora"}</h1>
+          <a href="/dashboard" style={{ background: "#eef2ff", color: "#4f46e5", border: "1px solid #c7d2fe", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
+            Volver
+          </a>
         </div>
 
-        {maestro.plan !== "premium" && (
-          <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "12px", padding: "12px 16px", marginBottom: "20px", color: "#c7d2fe", fontSize: "13px" }}>
-            📋 Tu plan gratis incluye <strong>1 grupo</strong> con alumnos ilimitados ({grupos.length}/1 usado). Para crear 2 o mas grupos, actualiza a Premium ($49/mes).
-          </div>
-        )}
-
-        {avisoGafetes && (
-          <div style={{ background: avisoGafetes.fondo, border: `1px solid ${avisoGafetes.borde}`, borderRadius: "12px", padding: "14px 16px", marginBottom: "20px", color: "white", fontSize: "14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-            <span>{avisoGafetes.texto}</span>
-            <button onClick={() => setAvisoGafetes(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>×</button>
-          </div>
-        )}
-        <div style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(99,102,241,0.12))", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "12px", padding: "14px 16px", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-          <div style={{ fontSize: "26px", lineHeight: 1 }}>🎨</div>
-          <div>
-            <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#e2e8f0" }}>
-              <span style={{ background: "#22c55e", color: "#052e16", fontSize: "10px", fontWeight: 800, padding: "2px 7px", borderRadius: "20px", marginRight: "8px", verticalAlign: "middle" }}>NUEVO</span>
-              Personaliza tus gafetes
-            </p>
-            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#cbd5e1", lineHeight: 1.5 }}>
-              Al dar clic en <strong>🪪 Descargar gafetes</strong> puedes elegir el <strong>color</strong>, el <strong>diseño</strong> (Clásico, Moderno, Infantil o Minimalista) y el <strong>tamaño</strong> (credencial, mediano o grande para colgar). También puedes agregar el nombre de tu escuela y el ciclo escolar. El código QR no cambia: los gafetes que ya imprimiste siguen funcionando.
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "600", margin: 0 }}>Mis grupos</h2>
-          <button onClick={() => setMostrarFormGrupo(!mostrarFormGrupo)} style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
-            + Nuevo grupo
+        <div className="no-print" style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
+          {tabBtn("diario", "📓 Diario")}
+          {tabBtn("incidencias", "⚠️ Bitácora")}
+          <button
+            onClick={abrirHistorial}
+            style={{ padding: "10px 20px", borderRadius: "10px", border: "1px solid #c7d2fe", fontWeight: 700, fontSize: "14px", cursor: "pointer", background: mostrarHistorial ? "#eef2ff" : "#fff", color: "#4f46e5" }}
+          >
+            🕓 {mostrarHistorial ? "Ocultar anteriores" : "Ver anteriores"}
           </button>
         </div>
 
-        {mostrarFormGrupo && (
-          <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "24px", marginBottom: "24px" }}>
-            <h3 style={{ margin: "0 0 16px 0", fontSize: "16px" }}>Crear nuevo grupo</h3>
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
-              <select value={nivelEducativo} onChange={(e) => setNivelEducativo(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px" }}>
-                {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Grado</label>
-                <select value={grado} onChange={(e) => setGrado(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px" }}>
-                  {["1","2","3","4","5","6"].map((g) => (<option key={g} value={g} style={{ background: "#1e1b4b" }}>{g} Grado</option>))}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Grupo</label>
-                <select value={grupo} onChange={(e) => setGrupo(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px" }}>
-                  {["A","B","C","D","E","F","G","H","I","J","K","L"].map((g) => (<option key={g} value={g} style={{ background: "#1e1b4b" }}>Grupo {g}</option>))}
-                </select>
-              </div>
-            </div>
-            {["secundaria", "media_superior", "superior"].includes(nivelEducativo) && (
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
-                <input value={asignatura} onChange={(e) => setAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
-                <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#64748b" }}>Aparecerá en los códigos QR y en los gafetes.</p>
-              </div>
-            )}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Escuela o turno (opcional)</label>
-              <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} maxLength={60} placeholder="Ej. Matutino, Vespertino, Esc. Benito Juárez" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
-              <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#64748b" }}>Útil si das clases en dos escuelas o turnos y tienes grupos con el mismo nombre.</p>
-            </div>
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Lista de alumnos (un nombre por linea)</label>
-              <textarea value={alumnos} onChange={(e) => setAlumnos(e.target.value)} placeholder={"GARCIA LOPEZ JUAN\nMARTINEZ PEREZ ANA"} rows={8} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box" }} />
-            </div>
-            <button onClick={() => crearGrupo(false)} disabled={cargando} style={{ width: "100%", padding: "14px", background: cargando ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "15px", fontWeight: "700", cursor: cargando ? "not-allowed" : "pointer" }}>
-              {cargando ? "Creando..." : "Crear grupo"}
+        {editandoId && (
+          <div className="no-print" style={{ background: "#fef9c3", border: "1px solid #fde047", color: "#854d0e", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Editando un registro guardado</span>
+            <button onClick={limpiarFormulario} style={{ background: "none", border: "none", color: "#854d0e", textDecoration: "underline", cursor: "pointer", fontSize: "13px", fontWeight: 700 }}>
+              Cancelar edición
             </button>
-            {mensaje && (<div style={{ marginTop: "12px", background: color, color: "white", padding: "12px", borderRadius: "10px", fontSize: "14px", fontWeight: "600" }}>{mensaje}</div>)}
           </div>
         )}
 
-        {grupos.length === 0 ? (
-          <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "40px", textAlign: "center", color: "#64748b" }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>📋</div>
-            <p style={{ fontSize: "16px" }}>No tienes grupos todavia</p>
-            <p style={{ fontSize: "14px" }}>Crea tu primer grupo para empezar</p>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gap: "16px" }}>
-            {grupos.map((g) => (
-              <div key={g.id} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>{g.nombre}</h3>
-                  {g.asignatura && (<p style={{ margin: "4px 0 0 0", color: "#a5b4fc", fontSize: "13px", fontWeight: "600" }}>{g.asignatura}</p>)}
-                  {g.etiqueta && (
-                    <span style={{ display: "inline-block", marginTop: "6px", background: "rgba(56,189,248,0.15)", color: "#7dd3fc", border: "1px solid rgba(56,189,248,0.3)", padding: "2px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 700 }}>
-                      🏫 {g.etiqueta}
-                    </span>
-                  )}
-                  {conteoClaves[claveGrupo(g)] > 1 && (
-                    <p style={{ margin: "6px 0 0 0", color: "#fbbf24", fontSize: "12px", maxWidth: "320px", lineHeight: 1.4 }}>
-                      ⚠️ Tienes otro grupo que se ve igual. Usa <strong>✏️ Editar</strong> para agregarle la escuela o turno.
-                    </p>
-                  )}
-                  <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>Creado el {new Date(g.created_at).toLocaleDateString("es-MX")}</p>
-                </div>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  <a href={"/asistencia/" + g.id} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
-                  <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
-                  <button
-                    onClick={() => abrirEdicion(g)}
-                    style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                    ✏️ Editar
-                  </button>
-                  <button
-                    onClick={() => abrirGestionAlumnos(g)}
-                    style={{ background: "rgba(148,163,184,0.15)", color: "#cbd5e1", border: "1px solid rgba(148,163,184,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                    Gestionar alumnos
-                  </button>
-                  <button
-                    onClick={() => handleGafetes(g)}
-                    disabled={generandoGafetesId === g.id}
-                    style={{
-                      background: g.gafetes_pagado ? "rgba(26,107,60,0.3)" : "rgba(201,149,42,0.2)",
-                      color: g.gafetes_pagado ? "#4ade80" : "#fbbf24",
-                      border: g.gafetes_pagado ? "1px solid rgba(26,107,60,0.4)" : "1px solid rgba(201,149,42,0.3)",
-                      padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600",
-                      cursor: generandoGafetesId === g.id ? "wait" : "pointer",
-                    }}>
-                    {generandoGafetesId === g.id ? "Generando..." : g.gafetes_pagado ? "🪪 Descargar gafetes" : "🪪 Gafetes $99"}
-                  </button>
-                  <button onClick={() => abrirEliminarGrupo(g)} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                    Eliminar
-                  </button>
-                </div>
+        {mostrarHistorial && (
+          <div className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "16px", marginBottom: "20px" }}>
+            <div style={{ display: "flex", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: "160px" }}>
+                <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>¿Qué grupo quieres consultar?</label>
+                <select
+                  value={historialGrupo}
+                  onChange={(e) => { setHistorialGrupo(e.target.value); setHistorialAlumno(""); }}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  <option value="">Todos los grupos</option>
+                  {grupos.map((g) => (
+                    <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
+                  ))}
+                </select>
               </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ marginTop: "40px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "20px", textAlign: "center" }}>
-          <h3 style={{ margin: "0 0 8px 0", fontSize: "15px", fontWeight: "700" }}>¿Necesitas ayuda?</h3>
-          <p style={{ margin: "0 0 12px 0", color: "#94a3b8", fontSize: "13px" }}>Si tienes dudas o algún problema, contáctanos:</p>
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="mailto:aidabereniceh@gmail.com" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
-              ✉️ Email
-            </a>
-            <a href="/api/contacto" target="_blank" rel="noopener noreferrer" style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
-              💬 WhatsApp
-            </a>
-          </div>
-          <div style={{ marginTop: "16px", display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="/terminos-y-condiciones" style={{ color: "#64748b", fontSize: "12px", textDecoration: "underline" }}>Términos y Condiciones</a>
-            <a href="/aviso-de-privacidad" style={{ color: "#64748b", fontSize: "12px", textDecoration: "underline" }}>Aviso de Privacidad</a>
-          </div>
-        </div>
-      </div>
-
-      {mostrarModalPago && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "400px", width: "100%" }}>
-            <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", fontWeight: "700", textAlign: "center" }}>Elige como pagar</h3>
-            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>Plan Premium - $49 MXN/mes</p>
-
-            <button
-              onClick={irASuscripcion}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
-            >
-              💳 Suscripción automática (tarjeta)
-            </button>
-            <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
-              Se renueva sola cada mes. Cancela cuando quieras.<br />
-              <strong style={{ color: "#fbbf24" }}>Importante:</strong> inicia sesión en Mercado Pago con el mismo correo que usas en PasaLista ({maestro?.email}).
-            </p>
-
-            <button
-              onClick={irAPagarManual}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
-            >
-              🏪 Pago único (tarjeta, OXXO, SPEI)
-            </button>
-            <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
-              Pagas cada mes manualmente, sin renovación automática. Recomendado si tu correo de Mercado Pago es distinto al de PasaLista.
-            </p>
-
-            <button
-              onClick={() => setMostrarModalPago(false)}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {mostrarConfirmCancelar && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Cancelar suscripción automática?</h3>
-            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              No se te cobrará de nuevo. Tu Premium sigue activo hasta que termine el periodo ya pagado.
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setMostrarConfirmCancelar(false)} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
-                Volver
-              </button>
-              <button onClick={cancelarSuscripcion} disabled={cargandoCancelar} style={{ flex: 1, padding: "12px", background: cargandoCancelar ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoCancelar ? "not-allowed" : "pointer" }}>
-                {cargandoCancelar ? "Cancelando..." : "Sí, cancelar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {grupoEditando && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%" }}>
-            <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "700" }}>Editar grupo</h3>
-            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoEditando.nombre}</p>
-            <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
-            <select value={editNivel} onChange={(e) => setEditNivel(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", marginBottom: "16px" }}>
-              {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
-            </select>
-            {["secundaria", "media_superior", "superior"].includes(editNivel) && (
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
-                <input value={editAsignatura} onChange={(e) => setEditAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
+              <div style={{ flex: 1, minWidth: "160px" }}>
+                <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>📅 Mes</label>
+                <select
+                  value={historialMes}
+                  onChange={(e) => setHistorialMes(e.target.value)}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  <option value="">Todos los meses</option>
+                  {ultimosMeses().map((m) => (
+                    <option key={m.valor} value={m.valor}>{m.texto}</option>
+                  ))}
+                </select>
               </div>
-            )}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Escuela o turno (opcional)</label>
-              <input value={editEtiqueta} onChange={(e) => setEditEtiqueta(e.target.value)} maxLength={60} placeholder="Ej. Matutino, Vespertino, Esc. Benito Juárez" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
-            </div>
-            {mensajeEdicion && (<div style={{ background: "#ef4444", color: "white", padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "12px" }}>{mensajeEdicion}</div>)}
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setGrupoEditando(null)} disabled={guardandoEdicion} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
-                Cancelar
-              </button>
-              <button onClick={guardarEdicion} disabled={guardandoEdicion} style={{ flex: 1, padding: "12px", background: guardandoEdicion ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: guardandoEdicion ? "not-allowed" : "pointer" }}>
-                {guardandoEdicion ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {grupoGestionando && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "480px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>Gestionar alumnos</h3>
-              <button onClick={() => setGrupoGestionando(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
-            </div>
-            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoGestionando.nombre}</p>
-
-            <div style={{ overflowY: "auto", marginBottom: "16px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
-              {cargandoAlumnosGestion ? (
-                <div style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>Cargando...</div>
-              ) : alumnosGestion.length === 0 ? (
-                <div style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No hay alumnos activos</div>
-              ) : (
-                alumnosGestion.map((a) => (
-                  <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span style={{ fontSize: "13px", color: "#e2e8f0" }}>{a.nombre}</span>
-                    <button
-                      onClick={() => setAlumnoABaja(a)}
-                      disabled={dandoDeBajaId === a.id}
-                      style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", cursor: dandoDeBajaId === a.id ? "not-allowed" : "pointer" }}
-                    >
-                      {dandoDeBajaId === a.id ? "..." : "Dar de baja"}
-                    </button>
-                  </div>
-                ))
+              {tab === "incidencias" && historialGrupo && (
+                <div style={{ flex: 1, minWidth: "160px" }}>
+                  <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>Alumno</label>
+                  <select
+                    value={historialAlumno}
+                    onChange={(e) => setHistorialAlumno(e.target.value)}
+                    style={{ ...inputStyle, width: "100%" }}
+                  >
+                    <option value="">Todos los alumnos</option>
+                    {alumnosHistorial.map((a) => (
+                      <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 
-            <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Agregar alumnos (un nombre por linea)</label>
-            <textarea
-              value={nuevosAlumnos}
-              onChange={(e) => setNuevosAlumnos(e.target.value)}
-              placeholder={"GARCIA LOPEZ JUAN\nMARTINEZ PEREZ ANA"}
-              rows={4}
-              style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box", marginBottom: "10px" }}
-            />
-            <button
-              onClick={agregarAlumnosGestion}
-              disabled={agregandoAlumnos}
-              style={{ width: "100%", padding: "12px", background: agregandoAlumnos ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: agregandoAlumnos ? "not-allowed" : "pointer" }}
-            >
-              {agregandoAlumnos ? "Agregando..." : "Agregar alumnos"}
-            </button>
-            {mensajeGestion && (
-              <div style={{ marginTop: "10px", background: colorGestion, color: "white", padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: "600" }}>
-                {mensajeGestion}
+            {!cargandoHistorial && (
+              <p style={{ color: "#4f46e5", fontSize: "12px", fontWeight: 700, margin: "0 0 8px" }}>
+                {totalHistorial} {tab === "diario" ? (totalHistorial === 1 ? "entrada" : "entradas") : (totalHistorial === 1 ? "incidencia" : "incidencias")} {textoPeriodo}
+              </p>
+            )}
+
+            {cargandoHistorial ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>Cargando…</p>
+            ) : (tab === "diario" ? listaDiario : listaBitacora).length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
+                {tab === "diario" ? "No hay entradas guardadas" : "No hay incidencias registradas"} para esa selección.
+              </p>
+            ) : (
+              <div style={{ border: "1px solid #f1f5f9", borderRadius: "10px", overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr auto", gap: "8px", padding: "8px 12px", background: "#f8fafc", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <span>Fecha</span>
+                  <span>Grupo</span>
+                  <span></span>
+                </div>
+                {(tab === "diario" ? listaDiario : listaBitacora).map((r) => (
+                  <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr auto", gap: "8px", alignItems: "center", padding: "10px 12px", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontWeight: 700, fontSize: "13px" }}>{textoFechaCorta(r.fecha)}</span>
+                    <span style={{ fontSize: "13px", color: nombreGrupo(r.grupo_id) === "Grupo eliminado" ? "#b91c1c" : "#334155" }}>{nombreGrupo(r.grupo_id)}</span>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => (tab === "diario" ? editarEntradaDiario(r) : editarEntradaBitacora(r))}
+                        style={{ background: "#eef2ff", color: "#4f46e5", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                      >
+                        Ver / Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarRegistro(r)}
+                        disabled={eliminandoId === r.id}
+                        title="Eliminar registro"
+                        style={{ background: "#fee2e2", color: "#b91c1c", border: "none", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: eliminandoId === r.id ? "wait" : "pointer" }}
+                      >
+                        {eliminandoId === r.id ? "…" : "🗑️ Eliminar"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {alumnoABaja && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1100 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "380px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Dar de baja a {alumnoABaja.nombre}?</h3>
-            <p style={{ margin: "0 0 24px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              Ya no aparecerá en la lista ni en nuevos códigos QR. Su historial de asistencia se conserva.
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setAlumnoABaja(null)} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
-                Cancelar
-              </button>
-              <button onClick={confirmarBajaAlumno} disabled={!!dandoDeBajaId} style={{ flex: 1, padding: "12px", background: dandoDeBajaId ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: dandoDeBajaId ? "not-allowed" : "pointer" }}>
-                {dandoDeBajaId ? "..." : "Sí, dar de baja"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {gafetesAPersonalizar && (
-        <PersonalizarGafetes
-          grupo={{ nombre: gafetesAPersonalizar.grupo.nombre, grado: gafetesAPersonalizar.grupo.grado, asignatura: gafetesAPersonalizar.grupo.asignatura || "" }}
-          maestro={{ nombre: maestro.nombre, email: maestro.email }}
-          alumnos={gafetesAPersonalizar.alumnos}
-          onClose={() => setGafetesAPersonalizar(null)}
-        />
-      )}
-
-      {grupoDuplicado && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1100 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>📋</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>Ya tienes un grupo igual</h3>
-            <p style={{ margin: "0 0 8px 0", color: "#cbd5e1", fontSize: "14px", lineHeight: 1.5 }}>{grupoDuplicado}</p>
-            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px", lineHeight: 1.5 }}>
-              Si es otro grupo (por ejemplo, de otra escuela o turno), escribe la <strong style={{ color: "#e2e8f0" }}>escuela o turno</strong> para distinguirlos.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <button onClick={() => setGrupoDuplicado("")} style={{ padding: "12px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
-                ✏️ Agregar escuela o turno
-              </button>
-              <button onClick={() => { setGrupoDuplicado(""); crearGrupo(true); }} disabled={cargando} style={{ padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
-                Crear de todos modos
-              </button>
-              <button onClick={() => { setGrupoDuplicado(""); setMostrarFormGrupo(false); }} style={{ padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {grupoAEliminar && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
-          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "700" }}>¿Eliminar grupo {grupoAEliminar.nombre}?</h3>
-            <p style={{ margin: "0 0 12px 0", color: "#94a3b8", fontSize: "14px", lineHeight: 1.5 }}>
-              Se borrará el grupo junto con <strong style={{ color: "#e2e8f0" }}>toda su información</strong>:
-            </p>
-            <ul style={{ textAlign: "left", margin: "0 auto 14px", padding: "12px 16px 12px 34px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "10px", color: "#cbd5e1", fontSize: "13px", lineHeight: 1.7, maxWidth: "320px" }}>
-              <li>Alumnos y sus códigos QR</li>
-              <li>Registros de asistencia y salidas al baño</li>
-              <li>Entradas del Diario del Maestro</li>
-              <li>Incidencias de la Bitácora</li>
-              <li>Evaluaciones, materias y tareas</li>
-            </ul>
-            <p style={{ margin: "0 0 20px 0", color: "#fca5a5", fontSize: "13px", fontWeight: 700 }}>
-              Esta acción no se puede deshacer.
-            </p>
-            {errorEliminar && (
-              <div style={{ background: "#ef4444", color: "white", padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, marginBottom: "14px", textAlign: "left" }}>
-                ❌ {errorEliminar}
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          {tab === "diario" ? (
+            <>
+              <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
+                <div>
+                  <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Fecha</label>
+                  <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{ flex: 1, minWidth: "160px" }}>
+                  <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Grupo</label>
+                  <select value={grupo} onChange={(e) => setGrupo(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
+                    <option value="">Selecciona un grupo…</option>
+                    {grupos.map((g) => (
+                      <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            )}
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={cerrarEliminarGrupo} disabled={eliminando} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: eliminando ? "not-allowed" : "pointer" }}>
-                Cancelar
-              </button>
-              <button onClick={eliminarGrupo} disabled={eliminando} style={{ flex: 1, padding: "12px", background: eliminando ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: eliminando ? "not-allowed" : "pointer" }}>
-                {eliminando ? "Eliminando..." : errorEliminar ? "Intentar de nuevo" : "Sí, eliminar todo"}
-              </button>
-            </div>
-          </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Nombre del Docente</label>
+                <input
+                  value={nombreDocente}
+                  onChange={(e) => setNombreDocente(e.target.value)}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#15803d", marginBottom: "8px" }}>
+                  Componentes curriculares trabajados hoy
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px", background: "#f0fdf4", padding: "12px", borderRadius: "10px" }}>
+                  {COMPONENTES.map((c) => (
+                    <Check2 key={c} label={c} checked={!!componentes[c]} onChange={(v: boolean) => setComponentes({ ...componentes, [c]: v })} />
+                  ))}
+                </div>
+              </div>
+
+              <CampoDictado label="Actividades realizadas" value={actividades} onChange={setActividades} />
+              <CampoDictado label="Logros del día" value={logros} onChange={setLogros} />
+              <CampoDictado label="Retos u obstáculos" value={retos} onChange={setRetos} />
+              <CampoDictado label="Observaciones sobre el grupo" value={observaciones} onChange={setObservaciones} />
+              <CampoDictado label="Compromisos para la próxima sesión" value={compromisos} onChange={setCompromisos} rows={2} />
+
+              <div>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#b45309", marginBottom: "8px" }}>Autoevaluación</p>
+                <div style={{ background: "#fffbeb", padding: "12px", borderRadius: "10px" }}>
+                  {AUTOEVAL.map((a) => (
+                    <Check2 key={a} label={a} checked={!!autoeval[a]} onChange={(v: boolean) => setAutoeval({ ...autoeval, [a]: v })} />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: "20px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firmas</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Maestro(a)</label>
+                    <input
+                      value={firmaDocente}
+                      onChange={(e) => setFirmaDocente(e.target.value)}
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Director(a)</label>
+                    <input
+                      value={firmaDirector}
+                      onChange={(e) => setFirmaDirector(e.target.value)}
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                <div>
+                  <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Grupo</label>
+                  <select value={incGrupo} onChange={(e) => setIncGrupo(e.target.value)} style={{ ...inputStyle, width: "100%" }}>
+                    <option value="">Selecciona un grupo</option>
+                    {grupos.map((g) => (
+                      <option key={g.id} value={g.id}>{etiquetaGrupo(g)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>Nombre del alumno</label>
+                  <select
+                    value={incAlumno}
+                    onChange={(e) => setIncAlumno(e.target.value)}
+                    disabled={!incGrupo}
+                    style={{ ...inputStyle, width: "100%" }}
+                  >
+                    <option value="">{incGrupo ? "Selecciona un alumno…" : "Primero selecciona un grupo"}</option>
+                    {alumnosDelGrupo.map((a) => (
+                      <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ fontSize: "13px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "4px" }}>Fecha</label>
+                <input type="date" value={incFecha} onChange={(e) => setIncFecha(e.target.value)} style={inputStyle} />
+              </div>
+
+              <p style={{ fontWeight: 700, fontSize: "14px", color: "#475569", margin: "20px 0 10px" }}>Situación</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "24px", marginBottom: "20px" }}>
+                <div>
+                  {SITUACIONES.slice(0, 6).map((s) => (
+                    <Check2 key={s} label={s} checked={!!incSituaciones[s]} onChange={(v: boolean) => setIncSituaciones({ ...incSituaciones, [s]: v })} />
+                  ))}
+                </div>
+                <div>
+                  {SITUACIONES.slice(6).map((s) => (
+                    <Check2 key={s} label={s} checked={!!incSituaciones[s]} onChange={(v: boolean) => setIncSituaciones({ ...incSituaciones, [s]: v })} />
+                  ))}
+                </div>
+              </div>
+
+              <CampoDictado label="Descripción del incidente" value={incDescripcion} onChange={setIncDescripcion} />
+              <CampoDictado label="Acción tomada" value={incAccion} onChange={setIncAccion} rows={2} />
+
+              <Check2 checked={incNotifico} onChange={setIncNotifico} label="Se notificó a los padres o tutores" />
+
+              <div style={{ marginTop: "20px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                <p style={{ fontWeight: 700, fontSize: "14px", color: "#1e293b", marginBottom: "10px" }}>Firmas</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  {[
+                    ["alumno", "Alumno"],
+                    ["director", "Director(a)"],
+                    ["padre", "Padre o tutor"],
+                    ["otros", "Otros"],
+                    ["maestro", "Maestro(a)"],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <label style={{ fontSize: "12px", color: "#475569", fontWeight: 600, display: "block", marginBottom: "6px" }}>{label}</label>
+                      <input
+                        value={firmas[key] || ""}
+                        onChange={(e) => setFirmas({ ...firmas, [key]: e.target.value })}
+                        style={{ ...inputStyle, width: "100%" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      )}
+
+        <div className="no-print" style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
+          <button onClick={guardar} disabled={guardando} style={btnAccion(guardando ? "#94a3b8" : "#6366f1", "white")}>
+            {guardando ? "Guardando…" : editandoId ? "Actualizar" : "Guardar"}
+          </button>
+          <button onClick={imprimirPDF} style={btnAccion("#f1f5f9", "#334155")}>📄 Exportar PDF</button>
+          <button onClick={handleWord} style={btnAccion("#dcfce7", "#15803d")}>⬇️ Exportar Word</button>
+          <button onClick={guardarEnDrive} style={btnAccion("#dbeafe", "#1d4ed8")}>☁️ Guardar en Drive</button>
+        </div>
+
+        {mensaje && (
+          <div className="no-print" style={{ marginTop: "14px", background: color, color: "white", padding: "12px", borderRadius: "10px", fontSize: "14px", fontWeight: 700 }}>
+            {mensaje}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
