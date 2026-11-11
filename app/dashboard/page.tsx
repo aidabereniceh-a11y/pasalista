@@ -464,6 +464,18 @@ export default function Dashboard() {
                 🔒 Bitácora y Diario del Maestro
               </button>
             )}
+            {maestro.plan === "premium" ? (
+  <a href="/dashboard/diario" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>
+    📓 Bitácora y Diario del Maestro
+  </a>
+) : (
+  <button onClick={() => setMostrarModalPago(true)} style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
+    🔒 Bitácora y Diario del Maestro
+  </button>
+)}
+<a href="/dashboard/evaluaciones" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>
+  📝 Evaluaciones
+</a>
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesion
             </button>
