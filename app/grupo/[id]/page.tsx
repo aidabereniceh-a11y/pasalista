@@ -37,6 +37,10 @@ export default function GrupoPage() {
   const [guardadoId, setGuardadoId] = useState<number | null>(null);
   const [maestro, setMaestro] = useState<any>(null);
 
+  // Compartir con papás
+  const [linkCopiado, setLinkCopiado] = useState<number | null>(null);
+  const [copiandoId, setCopiandoId] = useState<number | null>(null);
+
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (data) setMaestro(JSON.parse(data));
@@ -114,6 +118,23 @@ export default function GrupoPage() {
     setGuardandoId(null);
     setGuardadoId(alumnoId);
     setTimeout(() => setGuardadoId(null), 2000);
+  };
+
+  const compartirReporte = async (alumnoId: number) => {
+    if (copiandoId === alumnoId || !maestro) return;
+    setCopiandoId(alumnoId);
+    try {
+      const res = await fetch(`/api/reporte-token?alumnoId=${alumnoId}&maestroId=${maestro.id}`);
+      const data = await res.json();
+      if (data.url) {
+        await navigator.clipboard.writeText(data.url);
+        setLinkCopiado(alumnoId);
+        setTimeout(() => setLinkCopiado(null), 3000);
+      }
+    } catch (e) {
+      // silently fail
+    }
+    setCopiandoId(null);
   };
 
   const agregarAlumno = async () => {
@@ -302,14 +323,35 @@ export default function GrupoPage() {
                         style={{ width: "100%", padding: "10px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid #334155", color: "white", fontSize: "13px", resize: "vertical", boxSizing: "border-box", marginBottom: "12px" }}
                       />
 
-                      {/* Botón guardar */}
-                      <button onClick={() => guardarConducta(alumno.id)} disabled={guardandoId === alumno.id} style={{
-                        padding: "10px 24px", borderRadius: "8px", border: "none", fontWeight: "700", fontSize: "13px", cursor: "pointer",
-                        background: guardadoId === alumno.id ? "#16a34a" : guardandoId === alumno.id ? "#475569" : "#6366f1",
-                        color: "white",
-                      }}>
-                        {guardadoId === alumno.id ? "✓ Guardado" : guardandoId === alumno.id ? "Guardando..." : "Guardar"}
-                      </button>
+                      {/* Botones */}
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                        {/* Botón compartir con papás */}
+                        <button
+                          onClick={() => compartirReporte(alumno.id)}
+                          disabled={copiandoId === alumno.id}
+                          style={{
+                            padding: "10px 20px", borderRadius: "8px", border: "none",
+                            fontWeight: "700", fontSize: "13px", cursor: copiandoId === alumno.id ? "not-allowed" : "pointer",
+                            background: linkCopiado === alumno.id ? "rgba(34,197,94,0.2)" : "rgba(99,102,241,0.2)",
+                            color: linkCopiado === alumno.id ? "#4ade80" : "#818cf8",
+                          }}
+                        >
+                          {linkCopiado === alumno.id ? "✓ Link copiado" : copiandoId === alumno.id ? "Generando..." : "📤 Compartir con papás"}
+                        </button>
+
+                        {/* Botón guardar */}
+                        <button
+                          onClick={() => guardarConducta(alumno.id)}
+                          disabled={guardandoId === alumno.id}
+                          style={{
+                            padding: "10px 24px", borderRadius: "8px", border: "none", fontWeight: "700", fontSize: "13px", cursor: "pointer",
+                            background: guardadoId === alumno.id ? "#16a34a" : guardandoId === alumno.id ? "#475569" : "#6366f1",
+                            color: "white",
+                          }}
+                        >
+                          {guardadoId === alumno.id ? "✓ Guardado" : guardandoId === alumno.id ? "Guardando..." : "Guardar"}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
