@@ -17,7 +17,7 @@ const COMENTARIOS_NEGATIVOS = [
   "No trae material necesario",
 ];
 
-const PERIODOS = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
+const PERIODOS_DEFAULT = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
 
 const TIPOS_EVALUACION = [
   { value: "tarea", label: "📋 Tarea" },
@@ -58,6 +58,11 @@ export default function EvaluacionesPage() {
   const [linkCopiado, setLinkCopiado] = useState<number | null>(null);
   const [copiandoId, setCopiandoId] = useState<number | null>(null);
 
+  // Períodos configurables
+  const [periodos, setPeriodos] = useState<string[]>(PERIODOS_DEFAULT);
+  const [editandoPeriodos, setEditandoPeriodos] = useState(false);
+  const [periodosTemp, setPeriodosTemp] = useState<string[]>(PERIODOS_DEFAULT);
+
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (!data) { router.push("/login"); return; }
@@ -66,6 +71,14 @@ export default function EvaluacionesPage() {
     fetch(`/api/grupos?maestroId=${m.id}`)
       .then(r => r.json())
       .then(data => setGrupos(data.grupos || []));
+    // Cargar períodos guardados
+    const savedPeriodos = localStorage.getItem("periodos_conducta");
+    if (savedPeriodos) {
+      const p = JSON.parse(savedPeriodos);
+      setPeriodos(p);
+      setPeriodosTemp(p);
+      setPeriodoSeleccionado(p[0]);
+    }
   }, [router]);
 
   useEffect(() => {
@@ -198,6 +211,15 @@ export default function EvaluacionesPage() {
       }
     } catch (e) {}
     setCopiandoId(null);
+  };
+
+  const guardarPeriodos = () => {
+    const limpios = periodosTemp.map(p => p.trim()).filter(p => p.length > 0);
+    if (limpios.length === 0) return;
+    setPeriodos(limpios);
+    setPeriodoSeleccionado(limpios[0]);
+    localStorage.setItem("periodos_conducta", JSON.stringify(limpios));
+    setEditandoPeriodos(false);
   };
 
   const grupoActual = grupos.find(g => g.id === grupoSeleccionado);
@@ -353,17 +375,38 @@ export default function EvaluacionesPage() {
           {pestana === "conducta" && (
             <div>
               <div style={{ background: "#1e293b", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "8px" }}>Periodo</label>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  {PERIODOS.map(p => (
-                    <button key={p} onClick={() => { setPeriodoSeleccionado(p); setAlumnoAbierto(null); }} style={{
-                      padding: "8px 16px", borderRadius: "8px", border: "2px solid",
-                      borderColor: periodoSeleccionado === p ? "#6366f1" : "#334155",
-                      background: periodoSeleccionado === p ? "#312e81" : "transparent",
-                      color: "white", cursor: "pointer", fontWeight: "600", fontSize: "13px",
-                    }}>{p}</button>
-                  ))}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8" }}>Periodo</label>
+                  <button onClick={() => { setEditandoPeriodos(!editandoPeriodos); setPeriodosTemp(periodos); }} style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: "12px", fontWeight: "700" }}>
+                    {editandoPeriodos ? "Cancelar" : "✏️ Personalizar"}
+                  </button>
                 </div>
+
+                {editandoPeriodos ? (
+                  <div>
+                    <p style={{ fontSize: "12px", color: "#94a3b8", margin: "0 0 10px" }}>Escribe un período por línea (ej. Trimestre 1, Bimestre 2, etc.)</p>
+                    <textarea
+                      value={periodosTemp.join("\n")}
+                      onChange={e => setPeriodosTemp(e.target.value.split("\n"))}
+                      rows={4}
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", background: "#0f172a", border: "1px solid #334155", color: "white", fontSize: "13px", resize: "vertical", boxSizing: "border-box", marginBottom: "10px" }}
+                    />
+                    <button onClick={guardarPeriodos} style={{ padding: "8px 20px", borderRadius: "8px", background: "#6366f1", color: "white", border: "none", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>
+                      Guardar períodos
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {periodos.map(p => (
+                      <button key={p} onClick={() => { setPeriodoSeleccionado(p); setAlumnoAbierto(null); }} style={{
+                        padding: "8px 16px", borderRadius: "8px", border: "2px solid",
+                        borderColor: periodoSeleccionado === p ? "#6366f1" : "#334155",
+                        background: periodoSeleccionado === p ? "#312e81" : "transparent",
+                        color: "white", cursor: "pointer", fontWeight: "600", fontSize: "13px",
+                      }}>{p}</button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {alumnos.length === 0 ? (
