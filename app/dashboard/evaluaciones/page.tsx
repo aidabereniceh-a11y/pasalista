@@ -20,7 +20,7 @@ const COMENTARIOS_NEGATIVOS = [
 const PERIODOS = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
 
 interface Maestro { id: number; nombre: string; plan: string; }
-interface Grupo { id: number; nombre: string; grado: string; grupo: string; }
+interface Grupo { id: number; nombre: string; grado: string; grupo: string; asignatura?: string; etiqueta?: string; }
 interface Evaluacion { id: number; grupo_id: number; nombre: string; fecha: string; }
 interface Alumno { id: number; nombre: string; }
 interface Calificacion { alumno_id: number; calificacion: number | string; observacion: string; }
@@ -215,7 +215,7 @@ export default function EvaluacionesPage() {
         >
           <option value="">-- Elige un grupo --</option>
           {grupos.map(g => (
-            <option key={g.id} value={g.id}>{g.nombre} — {g.grado} {g.grupo}</option>
+            <option key={g.id} value={g.id}>{g.nombre}{g.asignatura ? ` · ${g.asignatura}` : ""}{g.etiqueta ? ` · ${g.etiqueta}` : ""}</option>
           ))}
         </select>
       </div>
