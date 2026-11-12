@@ -48,6 +48,7 @@ export default function EvaluacionesPage() {
   const [creando, setCreando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [mostrarTutorial, setMostrarTutorial] = useState(false);
 
   // Conducta
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState("Periodo 1");
@@ -76,6 +77,9 @@ export default function EvaluacionesPage() {
     fetch(`/api/grupos?maestroId=${m.id}`)
       .then(r => r.json())
       .then(data => setGrupos(data.grupos || []));
+    // Mostrar tutorial si es la primera vez
+    const tutorialVisto = localStorage.getItem("tutorial_evaluaciones_visto");
+    if (!tutorialVisto) setMostrarTutorial(true);
     // Cargar tipos personalizados (sincronizados con concentrado)
     const savedTipos = localStorage.getItem("tipos_concentrado");
     if (savedTipos) {
@@ -282,14 +286,103 @@ export default function EvaluacionesPage() {
     );
   }
 
+  const cerrarTutorial = () => {
+    localStorage.setItem("tutorial_evaluaciones_visto", "1");
+    setMostrarTutorial(false);
+  };
+
   return (
     <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
+
+      {/* Tutorial de bienvenida */}
+      {mostrarTutorial && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#1e293b", borderRadius: 20, padding: 32, maxWidth: 560, width: "100%", border: "1px solid #334155", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{ fontSize: 48, marginBottom: 8 }}>📝</div>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Bienvenido a Evaluaciones</h2>
+              <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 6 }}>Sigue estos pasos para registrar calificaciones fácilmente</p>
+            </div>
+
+            {/* Pasos */}
+            {[
+              {
+                num: "1",
+                icon: "👥",
+                titulo: "Selecciona un grupo",
+                desc: "Elige el grupo al que quieres registrar evaluaciones desde el menú desplegable.",
+              },
+              {
+                num: "2",
+                icon: "➕",
+                titulo: "Crea una evaluación",
+                desc: 'Escribe el nombre (ej. "Bloque 1", "Examen Trimestre"), elige el tipo (Tarea, Examen, Participación) y la fecha. Presiona "Crear".',
+              },
+              {
+                num: "3",
+                icon: "🎯",
+                titulo: "Selecciona la evaluación",
+                desc: "Haz clic en la evaluación que acabas de crear para abrirla y capturar las calificaciones.",
+              },
+              {
+                num: "4",
+                icon: "✏️",
+                titulo: "Captura las calificaciones",
+                desc: "Escribe la calificación de cada alumno (del 0 al 10). Puedes agregar una observación opcional.",
+              },
+              {
+                num: "5",
+                icon: "💾",
+                titulo: "Guarda",
+                desc: 'Presiona el botón "Guardar" para registrar las calificaciones. Se pondrá verde cuando se guarden correctamente.',
+              },
+              {
+                num: "6",
+                icon: "📊",
+                titulo: "Ve el concentrado",
+                desc: 'Usa el botón "Concentrado" para ver el promedio final de todos los alumnos con la ponderación que elijas.',
+              },
+              {
+                num: "7",
+                icon: "📤",
+                titulo: "Comparte con padres",
+                desc: 'En la pestaña "Conducta", abre a un alumno y presiona "Compartir con papás" para generar un link con su reporte.',
+              },
+            ].map(paso => (
+              <div key={paso.num} style={{ display: "flex", gap: 14, marginBottom: 16, alignItems: "flex-start" }}>
+                <div style={{ background: "#6366f1", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                  {paso.num}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{paso.icon} {paso.titulo}</div>
+                  <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.5 }}>{paso.desc}</div>
+                </div>
+              </div>
+            ))}
+
+            <div style={{ background: "#0f172a", borderRadius: 12, padding: "12px 16px", marginTop: 8, marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#fbbf24" }}>💡 <strong>Tip:</strong> Puedes personalizar los tipos de evaluación y su ponderación desde el Concentrado.</p>
+            </div>
+
+            <button onClick={cerrarTutorial} style={{ width: "100%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white", border: "none", borderRadius: 12, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+              ✅ Entendido, ¡comenzar!
+            </button>
+            <button onClick={cerrarTutorial} style={{ width: "100%", background: "none", border: "none", color: "#475569", fontSize: 13, cursor: "pointer", marginTop: 10 }}>
+              Omitir tutorial
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
         <button onClick={() => router.push("/dashboard")} style={{ background: "#1e293b", border: "none", color: "#94a3b8", padding: "8px 16px", borderRadius: "8px", cursor: "pointer" }}>
           ← Dashboard
         </button>
-        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "700" }}>📝 Evaluaciones</h1>
+        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "700", flex: 1 }}>📝 Evaluaciones</h1>
+        <button onClick={() => setMostrarTutorial(true)} title="Ver tutorial" style={{ background: "#1e293b", border: "1px solid #334155", color: "#6366f1", padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontWeight: 800, fontSize: 15 }}>
+          ? Ayuda
+        </button>
       </div>
 
       {/* Selector de grupo */}
