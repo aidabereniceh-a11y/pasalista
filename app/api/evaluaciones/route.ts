@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = 'edge';
 
+// GET /api/evaluaciones?maestroId=X&grupoId=Y
+// Devuelve las tareas del maestro (que son las "evaluaciones" en la UI)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const maestroId = searchParams.get("maestroId");
@@ -11,22 +13,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "maestroId requerido" }, { status: 400 });
   }
 
-  // Obtener los grupos del maestro primero
-  const { data: grupos } = await supabaseAdmin
-    .from("grupos")
-    .select("id")
-    .eq("maestro_id", maestroId);
-
-  if (!grupos || grupos.length === 0) {
-    return NextResponse.json({ evaluaciones: [] });
-  }
-
-  const grupoIds = grupos.map((g: any) => g.id);
-
   let query = supabaseAdmin
-    .from("evaluaciones")
-    .select("id, grupo_id, nombre, fecha, tipo")
-    .in("grupo_id", grupoIds)
+    .from("tareas")
+    .select("id, grupo_id, titulo, fecha, tipo, trimestre")
+    .eq("maestro_id", maestroId)
     .order("fecha", { ascending: false });
 
   if (grupoId) {
@@ -36,9 +26,21 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ evaluaciones: data || [] });
+
+  // Mapear titulo → nombre para compatibilidad con el frontend
+  const evaluaciones = (data || []).map((t: any) => ({
+    id: t.id,
+    grupo_id: t.grupo_id,
+    nombre: t.titulo,
+    fecha: t.fecha,
+    tipo: t.tipo || "tarea",
+    trimestre: t.trimestre,
+  }));
+
+  return NextResponse.json({ evaluaciones });
 }
 
+// POST /api/evaluaciones
 export async function POST(req: NextRequest) {
   const { maestroId, grupoId, nombre, fecha, tipo } = await req.json();
 
@@ -59,10 +61,11 @@ export async function POST(req: NextRequest) {
   }
 
   const { data, error } = await supabaseAdmin
-    .from("evaluaciones")
+    .from("tareas")
     .insert({
       grupo_id: grupoId,
-      nombre,
+      maestro_id: maestroId,
+      titulo: nombre,
       fecha: fecha || new Date().toISOString().split("T")[0],
       tipo: tipo || "tarea",
     })
@@ -70,5 +73,14 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ evaluacion: data });
+
+  return NextResponse.json({
+    evaluacion: {
+      id: data.id,
+      grupo_id: data.grupo_id,
+      nombre: data.titulo,
+      fecha: data.fecha,
+      tipo: data.tipo || "tarea",
+    }
+  });
 }

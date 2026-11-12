@@ -2,44 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = 'edge';
 
+// GET /api/evaluaciones/[id]/calificaciones
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id: evaluacionId } = await context.params;
+  const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
     .from("calificaciones")
-    .select("*, alumnos(id, nombre)")
-    .eq("evaluacion_id", evaluacionId);
+    .select("alumno_id, calificacion, observacion")
+    .eq("evaluacion_id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(data || []);
 }
 
+// POST /api/evaluaciones/[id]/calificaciones
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id: evaluacionId } = await context.params;
+  const { id } = await context.params;
   const { calificaciones } = await req.json();
 
-  if (!calificaciones || !Array.isArray(calificaciones)) {
-    return NextResponse.json({ error: "Formato inválido" }, { status: 400 });
+  if (!Array.isArray(calificaciones)) {
+    return NextResponse.json({ error: "calificaciones debe ser un array" }, { status: 400 });
   }
 
-  const rows = calificaciones.map((c: { alumnoId: number; calificacion: number; observacion?: string }) => ({
-    evaluacion_id: Number(evaluacionId),
+  // Upsert por evaluacion_id + alumno_id
+  const rows = calificaciones.map((c: any) => ({
+    evaluacion_id: Number(id),
     alumno_id: c.alumnoId,
     calificacion: c.calificacion,
-    observacion: c.observacion || null,
+    observacion: c.observacion || "",
   }));
 
-  const { data, error } = await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("calificaciones")
-    .upsert(rows, { onConflict: "evaluacion_id,alumno_id" })
-    .select();
+    .upsert(rows, { onConflict: "evaluacion_id,alumno_id" });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json({ ok: true });
 }
