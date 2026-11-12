@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       titulo: nombre,
       fecha: fecha || new Date().toISOString().split("T")[0],
       tipo: tipo || "tarea",
+      trimestre: 1,
     })
     .select()
     .single();
