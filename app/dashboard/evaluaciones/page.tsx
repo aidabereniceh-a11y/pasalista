@@ -57,6 +57,8 @@ export default function EvaluacionesPage() {
   const [guardadoConductaId, setGuardadoConductaId] = useState<number | null>(null);
   const [linkCopiado, setLinkCopiado] = useState<number | null>(null);
   const [copiandoId, setCopiandoId] = useState<number | null>(null);
+  const [historialMap, setHistorialMap] = useState<Record<number, { id: number; fecha: string; comentarios: string[]; observacion: string }[]>>({});
+  const [cargandoHistorial, setCargandoHistorial] = useState<number | null>(null);
 
   // Tipos de evaluación (sincronizados con concentrado)
   const [tiposEvaluacion, setTiposEvaluacion] = useState(TIPOS_EVALUACION_DEFAULT);
@@ -206,6 +208,18 @@ export default function EvaluacionesPage() {
     setGuardandoConductaId(null);
     setGuardadoConductaId(alumnoId);
     setTimeout(() => setGuardadoConductaId(null), 2000);
+  };
+
+  const abrirAlumno = async (alumnoId: number) => {
+    const yaAbierto = alumnoAbierto === alumnoId;
+    setAlumnoAbierto(yaAbierto ? null : alumnoId);
+    if (!yaAbierto && grupoSeleccionado) {
+      setCargandoHistorial(alumnoId);
+      const res = await fetch(`/api/conducta?grupoId=${grupoSeleccionado}&periodo=${encodeURIComponent(periodoSeleccionado)}&alumnoId=${alumnoId}`);
+      const data = await res.json();
+      setHistorialMap(prev => ({ ...prev, [alumnoId]: data.historial || [] }));
+      setCargandoHistorial(null);
+    }
   };
 
   const compartirReporte = async (alumnoId: number) => {
@@ -409,7 +423,7 @@ export default function EvaluacionesPage() {
                 ) : (
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     {periodos.map(p => (
-                      <button key={p} onClick={() => { setPeriodoSeleccionado(p); setAlumnoAbierto(null); }} style={{
+                      <button key={p} onClick={() => { setPeriodoSeleccionado(p); setAlumnoAbierto(null); setHistorialMap({}); }} style={{
                         padding: "8px 16px", borderRadius: "8px", border: "2px solid",
                         borderColor: periodoSeleccionado === p ? "#6366f1" : "#334155",
                         background: periodoSeleccionado === p ? "#312e81" : "transparent",
@@ -427,7 +441,7 @@ export default function EvaluacionesPage() {
                 const abierto = alumnoAbierto === alumno.id;
                 return (
                   <div key={alumno.id} style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "12px", marginBottom: "12px", overflow: "hidden" }}>
-                    <button onClick={() => setAlumnoAbierto(abierto ? null : alumno.id)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "none", border: "none", color: "white", cursor: "pointer", textAlign: "left" }}>
+                    <button onClick={() => abrirAlumno(alumno.id)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "none", border: "none", color: "white", cursor: "pointer", textAlign: "left" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <span style={{ fontSize: "14px", fontWeight: "600" }}>{alumno.nombre}</span>
                         {datos.comentarios.length > 0 && (
@@ -479,6 +493,26 @@ export default function EvaluacionesPage() {
                           rows={3}
                           style={{ width: "100%", padding: "10px", borderRadius: "8px", background: "#0f172a", border: "1px solid #334155", color: "white", fontSize: "13px", resize: "vertical", boxSizing: "border-box", marginBottom: "12px" }}
                         />
+
+                        {/* Historial por fecha */}
+                        {cargandoHistorial === alumno.id ? (
+                          <p style={{ fontSize: 12, color: "#64748b", margin: "8px 0" }}>Cargando historial...</p>
+                        ) : (historialMap[alumno.id] || []).length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>📅 Historial</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              {(historialMap[alumno.id] || []).map(entry => (
+                                <div key={entry.id} style={{ background: "#0f172a", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+                                  <span style={{ color: "#6366f1", fontWeight: 700, marginRight: 8 }}>{entry.fecha}</span>
+                                  {entry.comentarios.map((c, i) => (
+                                    <span key={i} style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", borderRadius: 20, padding: "2px 8px", marginRight: 4, display: "inline-block", marginBottom: 2 }}>{c}</span>
+                                  ))}
+                                  {entry.observacion && <span style={{ color: "#64748b", marginLeft: 4 }}>· {entry.observacion}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                           <button onClick={() => compartirReporte(alumno.id)} disabled={copiandoId === alumno.id} style={{
