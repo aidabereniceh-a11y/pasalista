@@ -19,7 +19,7 @@ const COMENTARIOS_NEGATIVOS = [
 
 const PERIODOS_DEFAULT = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
 
-const TIPOS_EVALUACION = [
+const TIPOS_EVALUACION_DEFAULT = [
   { value: "tarea", label: "📋 Tarea" },
   { value: "examen", label: "📄 Examen" },
   { value: "participacion", label: "🙋 Participación" },
@@ -58,6 +58,9 @@ export default function EvaluacionesPage() {
   const [linkCopiado, setLinkCopiado] = useState<number | null>(null);
   const [copiandoId, setCopiandoId] = useState<number | null>(null);
 
+  // Tipos de evaluación (sincronizados con concentrado)
+  const [tiposEvaluacion, setTiposEvaluacion] = useState(TIPOS_EVALUACION_DEFAULT);
+
   // Períodos configurables
   const [periodos, setPeriodos] = useState<string[]>(PERIODOS_DEFAULT);
   const [editandoPeriodos, setEditandoPeriodos] = useState(false);
@@ -71,6 +74,13 @@ export default function EvaluacionesPage() {
     fetch(`/api/grupos?maestroId=${m.id}`)
       .then(r => r.json())
       .then(data => setGrupos(data.grupos || []));
+    // Cargar tipos personalizados (sincronizados con concentrado)
+    const savedTipos = localStorage.getItem("tipos_concentrado");
+    if (savedTipos) {
+      const tipos = JSON.parse(savedTipos);
+      setTiposEvaluacion(tipos);
+      setNuevaEval(prev => ({ ...prev, tipo: tipos[0]?.value || "tarea" }));
+    }
     // Cargar períodos guardados
     const savedPeriodos = localStorage.getItem("periodos_conducta");
     if (savedPeriodos) {
@@ -224,7 +234,7 @@ export default function EvaluacionesPage() {
   };
 
   const grupoActual = grupos.find(g => g.id === grupoSeleccionado);
-  const tipoLabel = (tipo: string) => TIPOS_EVALUACION.find(t => t.value === tipo)?.label || "📋 Tarea";
+  const tipoLabel = (tipo: string) => tiposEvaluacion.find(t => t.value === tipo)?.label || TIPOS_EVALUACION_DEFAULT.find(t => t.value === tipo)?.label || "📋 Tarea";
 
   return (
     <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
@@ -290,7 +300,7 @@ export default function EvaluacionesPage() {
                     onChange={e => setNuevaEval(p => ({ ...p, tipo: e.target.value }))}
                     style={{ padding: "10px", borderRadius: "8px", background: "#0f172a", color: "white", border: "1px solid #334155", fontSize: "15px" }}
                   >
-                    {TIPOS_EVALUACION.map(t => (
+                    {tiposEvaluacion.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>
