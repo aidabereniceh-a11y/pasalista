@@ -1,6 +1,5 @@
 "use client";
-
-export const runtime = "edge";   // ← agregar esta línea
+export const runtime = "edge";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -51,26 +50,28 @@ export default function EvaluacionesPage() {
   const [guardado, setGuardado] = useState(false);
 
   useEffect(() => {
-  const data = localStorage.getItem("maestro");
-  if (!data) { router.push("/login"); return; }
-  const m = JSON.parse(data);
-  setMaestro(m);
-  fetch(`/api/grupos?maestroId=${m.id}`)
-    .then(r => r.json())
-    .then(data => setGrupos(data.grupos || []));  // ← fix aquí
-}, [router]);
+    const data = localStorage.getItem("maestro");
+    if (!data) { router.push("/login"); return; }
+    const m = JSON.parse(data);
+    setMaestro(m);
+    fetch(`/api/grupos?maestroId=${m.id}`)
+      .then(r => r.json())
+      .then(data => setGrupos(data.grupos || []));
+  }, [router]);
 
   useEffect(() => {
     if (!grupoSeleccionado || !maestro) return;
     setEvaluacionSeleccionada(null);
     setAlumnos([]);
     setCalificaciones({});
+    // Fix 1: desempaquetar evaluaciones
     fetch(`/api/evaluaciones?maestroId=${maestro.id}&grupoId=${grupoSeleccionado}`)
       .then(r => r.json())
-      .then(setEvaluaciones);
-    fetch(`/api/alumnos?grupoId=${grupoSeleccionado}`)
+      .then(data => setEvaluaciones(data.evaluaciones || []));
+    // Fix 2: agregar maestroId al fetch de alumnos
+    fetch(`/api/alumnos?grupoId=${grupoSeleccionado}&maestroId=${maestro.id}`)
       .then(r => r.json())
-      .then(setAlumnos);
+      .then(data => setAlumnos((data.alumnos || []).filter((a: any) => a.activo !== false)));
   }, [grupoSeleccionado, maestro]);
 
   useEffect(() => {
@@ -78,8 +79,10 @@ export default function EvaluacionesPage() {
     fetch(`/api/evaluaciones/${evaluacionSeleccionada.id}/calificaciones`)
       .then(r => r.json())
       .then((data: Array<{ alumno_id: number; calificacion: number; observacion: string }>) => {
+        // Fix 3: verificar que data sea un array antes de forEach
+        const arr = Array.isArray(data) ? data : [];
         const map: Record<number, Calificacion> = {};
-        data.forEach(c => {
+        arr.forEach(c => {
           map[c.alumno_id] = { alumno_id: c.alumno_id, calificacion: c.calificacion, observacion: c.observacion || "" };
         });
         setCalificaciones(map);
@@ -94,7 +97,9 @@ export default function EvaluacionesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ maestroId: maestro.id, grupoId: grupoSeleccionado, nombre: nuevaEval.nombre, fecha: nuevaEval.fecha || undefined }),
     });
-    const nueva = await res.json();
+    // Fix 4: desempaquetar la evaluación creada
+    const data = await res.json();
+    const nueva = data.evaluacion || data;
     setEvaluaciones(prev => [nueva, ...prev]);
     setNuevaEval({ nombre: "", fecha: "" });
     setCreando(false);
