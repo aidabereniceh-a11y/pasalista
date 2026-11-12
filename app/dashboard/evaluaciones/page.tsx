@@ -204,8 +204,9 @@ export default function EvaluacionesPage() {
     try {
       const res = await fetch(`/api/reporte-token?alumnoId=${alumnoId}&maestroId=${maestro.id}`);
       const data = await res.json();
-      if (data.url) {
-        await navigator.clipboard.writeText(data.url);
+      if (data.token) {
+        const url = `${window.location.origin}/reporte/${data.token}`;
+        await navigator.clipboard.writeText(url);
         setLinkCopiado(alumnoId);
         setTimeout(() => setLinkCopiado(null), 3000);
       }
