@@ -201,7 +201,7 @@ export default function EvaluacionesPage() {
   };
 
   const grupoActual = grupos.find(g => g.id === grupoSeleccionado);
-  const tipoLabel = (tipo: string) => TIPOS_EVALUACION.find(t => t.value === tipo)?.label || tipo;
+  const tipoLabel = (tipo: string) => TIPOS_EVALUACION.find(t => t.value === tipo)?.label || "📋 Tarea";
 
   return (
     <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
@@ -295,8 +295,8 @@ export default function EvaluacionesPage() {
                         background: evaluacionSeleccionada?.id === ev.id ? "#312e81" : "#0f172a",
                         color: "white", cursor: "pointer", fontWeight: "600", textAlign: "left"
                       }}>
-                        {ev.nombre}
-                        <span style={{ display: "block", fontSize: "11px", color: "#94a3b8", fontWeight: "400" }}>{tipoLabel(ev.tipo)} {ev.fecha ? `· ${ev.fecha}` : ""}</span>
+                        {ev.nombre || "Sin nombre"}
+                        <span style={{ display: "block", fontSize: "11px", color: "#94a3b8", fontWeight: "400" }}>{tipoLabel(ev.tipo || "tarea")} {ev.fecha ? `· ${ev.fecha}` : ""}</span>
                       </button>
                     ))}
                   </div>
