@@ -37,15 +37,26 @@ export default function ConcentradoPage() {
     participacion: 20,
     otro: 0,
   });
+  const [porcentajesGuardados, setPorcentajesGuardados] = useState(false);
 
   const totalPorcentaje = Object.values(porcentajes).reduce((a, b) => a + b, 0);
   const printRef = useRef<HTMLDivElement>(null);
+
+  const guardarPonderacion = () => {
+    if (totalPorcentaje !== 100) return;
+    localStorage.setItem("ponderacion_concentrado", JSON.stringify(porcentajes));
+    setPorcentajesGuardados(true);
+    setTimeout(() => setPorcentajesGuardados(false), 2000);
+  };
 
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (!data) { router.push("/login"); return; }
     const m = JSON.parse(data);
     setMaestro(m);
+    // Cargar ponderación guardada
+    const savedP = localStorage.getItem("ponderacion_concentrado");
+    if (savedP) setPorcentajes(JSON.parse(savedP));
     fetch(`/api/grupos?maestroId=${m.id}`)
       .then(r => r.json())
       .then(data => setGrupos(data.grupos || []));
@@ -184,13 +195,20 @@ export default function ConcentradoPage() {
             <div className="no-print" style={{ background: "#1e293b", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
                 <h2 style={{ margin: 0, fontSize: "16px", color: "#94a3b8" }}>⚖️ Ponderación (debe sumar 100%)</h2>
-                <span style={{
-                  fontWeight: "700", fontSize: "15px",
-                  color: totalPorcentaje === 100 ? "#4ade80" : "#f87171"
-                }}>
-                  Total: {totalPorcentaje}%
-                  {totalPorcentaje === 100 ? " ✓" : " ⚠️"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{
+                    fontWeight: "700", fontSize: "15px",
+                    color: totalPorcentaje === 100 ? "#4ade80" : "#f87171"
+                  }}>
+                    Total: {totalPorcentaje}%
+                    {totalPorcentaje === 100 ? " ✓" : " ⚠️"}
+                  </span>
+                  {totalPorcentaje === 100 && (
+                    <button onClick={guardarPonderacion} style={{ background: porcentajesGuardados ? "#16a34a" : "#6366f1", color: "white", border: "none", borderRadius: 8, padding: "6px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      {porcentajesGuardados ? "✓ Guardado" : "💾 Guardar ponderación"}
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                 {TIPOS.map(({ value, label }) => (
