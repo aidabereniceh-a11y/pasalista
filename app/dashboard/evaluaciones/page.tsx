@@ -19,9 +19,16 @@ const COMENTARIOS_NEGATIVOS = [
 
 const PERIODOS = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
 
+const TIPOS_EVALUACION = [
+  { value: "tarea", label: "📋 Tarea" },
+  { value: "examen", label: "📄 Examen" },
+  { value: "participacion", label: "🙋 Participación" },
+  { value: "otro", label: "📌 Otro" },
+];
+
 interface Maestro { id: number; nombre: string; plan: string; }
 interface Grupo { id: number; nombre: string; grado: string; grupo: string; asignatura?: string; etiqueta?: string; }
-interface Evaluacion { id: number; grupo_id: number; nombre: string; fecha: string; }
+interface Evaluacion { id: number; grupo_id: number; nombre: string; fecha: string; tipo: string; }
 interface Alumno { id: number; nombre: string; }
 interface Calificacion { alumno_id: number; calificacion: number | string; observacion: string; }
 
@@ -37,7 +44,7 @@ export default function EvaluacionesPage() {
   const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([]);
   const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<Evaluacion | null>(null);
   const [calificaciones, setCalificaciones] = useState<Record<number, Calificacion>>({});
-  const [nuevaEval, setNuevaEval] = useState({ nombre: "", fecha: "" });
+  const [nuevaEval, setNuevaEval] = useState({ nombre: "", fecha: "", tipo: "tarea" });
   const [creando, setCreando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -109,12 +116,12 @@ export default function EvaluacionesPage() {
     const res = await fetch("/api/evaluaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maestroId: maestro.id, grupoId: grupoSeleccionado, nombre: nuevaEval.nombre, fecha: nuevaEval.fecha || undefined }),
+      body: JSON.stringify({ maestroId: maestro.id, grupoId: grupoSeleccionado, nombre: nuevaEval.nombre, fecha: nuevaEval.fecha || undefined, tipo: nuevaEval.tipo }),
     });
     const data = await res.json();
     const nueva = data.evaluacion || data;
     setEvaluaciones(prev => [nueva, ...prev]);
-    setNuevaEval({ nombre: "", fecha: "" });
+    setNuevaEval({ nombre: "", fecha: "", tipo: "tarea" });
     setCreando(false);
   };
 
@@ -194,6 +201,7 @@ export default function EvaluacionesPage() {
   };
 
   const grupoActual = grupos.find(g => g.id === grupoSeleccionado);
+  const tipoLabel = (tipo: string) => TIPOS_EVALUACION.find(t => t.value === tipo)?.label || tipo;
 
   return (
     <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
@@ -223,7 +231,7 @@ export default function EvaluacionesPage() {
       {grupoSeleccionado && (
         <>
           {/* Pestañas */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
             {(["calificaciones", "conducta"] as const).map(p => (
               <button key={p} onClick={() => setPestana(p)} style={{
                 padding: "10px 20px", borderRadius: "10px", border: "none", fontWeight: "700", fontSize: "14px", cursor: "pointer",
@@ -233,6 +241,13 @@ export default function EvaluacionesPage() {
                 {p === "calificaciones" ? "📝 Calificaciones" : "📋 Conducta"}
               </button>
             ))}
+            {/* Botón concentrado */}
+            <button
+              onClick={() => router.push(`/dashboard/concentrado?grupoId=${grupoSeleccionado}`)}
+              style={{ padding: "10px 20px", borderRadius: "10px", border: "none", fontWeight: "700", fontSize: "14px", cursor: "pointer", background: "#1e293b", color: "#fbbf24" }}
+            >
+              📊 Concentrado
+            </button>
           </div>
 
           {/* ── PESTAÑA CALIFICACIONES ── */}
@@ -247,6 +262,15 @@ export default function EvaluacionesPage() {
                     onChange={e => setNuevaEval(p => ({ ...p, nombre: e.target.value }))}
                     style={{ flex: 1, minWidth: "200px", padding: "10px", borderRadius: "8px", background: "#0f172a", color: "white", border: "1px solid #334155", fontSize: "15px" }}
                   />
+                  <select
+                    value={nuevaEval.tipo}
+                    onChange={e => setNuevaEval(p => ({ ...p, tipo: e.target.value }))}
+                    style={{ padding: "10px", borderRadius: "8px", background: "#0f172a", color: "white", border: "1px solid #334155", fontSize: "15px" }}
+                  >
+                    {TIPOS_EVALUACION.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
                   <input
                     type="date"
                     value={nuevaEval.fecha}
@@ -269,10 +293,10 @@ export default function EvaluacionesPage() {
                         padding: "10px 16px", borderRadius: "8px", border: "2px solid",
                         borderColor: evaluacionSeleccionada?.id === ev.id ? "#6366f1" : "#334155",
                         background: evaluacionSeleccionada?.id === ev.id ? "#312e81" : "#0f172a",
-                        color: "white", cursor: "pointer", fontWeight: "600"
+                        color: "white", cursor: "pointer", fontWeight: "600", textAlign: "left"
                       }}>
                         {ev.nombre}
-                        <span style={{ display: "block", fontSize: "11px", color: "#94a3b8", fontWeight: "400" }}>{ev.fecha}</span>
+                        <span style={{ display: "block", fontSize: "11px", color: "#94a3b8", fontWeight: "400" }}>{tipoLabel(ev.tipo)} {ev.fecha ? `· ${ev.fecha}` : ""}</span>
                       </button>
                     ))}
                   </div>
@@ -282,7 +306,7 @@ export default function EvaluacionesPage() {
               {evaluacionSeleccionada && alumnos.length > 0 && (
                 <div style={{ background: "#1e293b", borderRadius: "12px", padding: "20px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-                    <h2 style={{ margin: 0, fontSize: "16px" }}>Calificaciones — {evaluacionSeleccionada.nombre}</h2>
+                    <h2 style={{ margin: 0, fontSize: "16px" }}>Calificaciones — {evaluacionSeleccionada.nombre} <span style={{ fontSize: "13px", color: "#94a3b8" }}>{tipoLabel(evaluacionSeleccionada.tipo)}</span></h2>
                     <button onClick={guardarCalificaciones} disabled={guardando}
                       style={{ padding: "10px 24px", borderRadius: "8px", background: guardado ? "#16a34a" : "#6366f1", color: "white", border: "none", fontWeight: "700", cursor: "pointer" }}>
                       {guardado ? "✓ Guardado" : guardando ? "Guardando..." : "Guardar"}
@@ -328,7 +352,6 @@ export default function EvaluacionesPage() {
           {/* ── PESTAÑA CONDUCTA ── */}
           {pestana === "conducta" && (
             <div>
-              {/* Selector de periodo */}
               <div style={{ background: "#1e293b", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
                 <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "8px" }}>Periodo</label>
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
