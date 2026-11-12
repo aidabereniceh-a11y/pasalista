@@ -250,6 +250,38 @@ export default function EvaluacionesPage() {
   const grupoActual = grupos.find(g => g.id === grupoSeleccionado);
   const tipoLabel = (tipo: string) => tiposEvaluacion.find(t => t.value === tipo)?.label || TIPOS_EVALUACION_DEFAULT.find(t => t.value === tipo)?.label || "📋 Tarea";
 
+  // Bloqueo premium
+  if (maestro && maestro.plan !== "premium") {
+    return (
+      <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ maxWidth: 480, textAlign: "center" }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>⭐</div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12 }}>Función Premium</h1>
+          <p style={{ color: "#94a3b8", fontSize: 16, marginBottom: 24, lineHeight: 1.6 }}>
+            El módulo de <strong style={{ color: "white" }}>Evaluaciones y Calificaciones</strong> está disponible para usuarios con plan Premium.
+          </p>
+          <div style={{ background: "#1e293b", borderRadius: 16, padding: 24, marginBottom: 24, border: "1px solid #334155", textAlign: "left" }}>
+            <p style={{ color: "#fbbf24", fontWeight: 700, marginBottom: 12, fontSize: 15 }}>✨ Con Premium tienes acceso a:</p>
+            <ul style={{ color: "#cbd5e1", fontSize: 14, lineHeight: 2, margin: 0, paddingLeft: 20 }}>
+              <li>📝 Registro de evaluaciones y calificaciones</li>
+              <li>📊 Concentrado de calificaciones por grupo</li>
+              <li>📋 Reporte de conducta con historial</li>
+              <li>📤 Compartir reporte con padres de familia</li>
+              <li>⚖️ Ponderación personalizable por tipo</li>
+            </ul>
+          </div>
+          <a href="https://pasalista.mx/premium" style={{ display: "inline-block", background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", fontWeight: 800, fontSize: 16, padding: "14px 36px", borderRadius: 12, textDecoration: "none", marginBottom: 16 }}>
+            🚀 Obtener Premium
+          </a>
+          <br />
+          <button onClick={() => router.push("/dashboard")} style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14, marginTop: 8 }}>
+            ← Volver al dashboard
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "24px", fontFamily: "system-ui, sans-serif" }}>
       {/* Header */}
