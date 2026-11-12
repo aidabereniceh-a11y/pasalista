@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 interface Alumno {
   id: number;
   nombre: string;
-  grupo?: { nombre: string; grado: string; turno: string };
+  grupo?: { nombre: string; grado: string; grupo: string; asignatura?: string; etiqueta?: string; turno?: string };
 }
 
 interface ConductaData {
@@ -98,10 +98,34 @@ export default function ReportePage() {
 
         {/* Datos alumno */}
         <div style={{ background: "#1e293b", borderRadius: 16, padding: 24, marginBottom: 20, border: "1px solid #334155" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "white", marginBottom: 4 }}>{alumno?.nombre}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "white", marginBottom: 8 }}>{alumno?.nombre || "—"}</div>
           {alumno?.grupo && (
-            <div style={{ color: "#94a3b8", fontSize: 14 }}>
-              {alumno.grupo.grado} · {alumno.grupo.nombre} · {alumno.grupo.turno}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {alumno.grupo.grado && (
+                <span style={{ background: "#0f172a", color: "#a5b4fc", padding: "4px 12px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+                  🎓 {alumno.grupo.grado}
+                </span>
+              )}
+              {alumno.grupo.nombre && (
+                <span style={{ background: "#0f172a", color: "#a5b4fc", padding: "4px 12px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+                  👥 {alumno.grupo.nombre}
+                </span>
+              )}
+              {alumno.grupo.asignatura && (
+                <span style={{ background: "#0f172a", color: "#fbbf24", padding: "4px 12px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+                  📚 {alumno.grupo.asignatura}
+                </span>
+              )}
+              {alumno.grupo.etiqueta && (
+                <span style={{ background: "#0f172a", color: "#94a3b8", padding: "4px 12px", borderRadius: 20, fontSize: 13 }}>
+                  {alumno.grupo.etiqueta}
+                </span>
+              )}
+              {alumno.grupo.turno && (
+                <span style={{ background: "#0f172a", color: "#94a3b8", padding: "4px 12px", borderRadius: 20, fontSize: 13 }}>
+                  🕐 {alumno.grupo.turno}
+                </span>
+              )}
             </div>
           )}
           {promedio && (

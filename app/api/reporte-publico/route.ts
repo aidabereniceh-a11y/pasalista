@@ -22,12 +22,19 @@ export async function GET(req: NextRequest) {
 
   const { alumno_id, maestro_id } = tokenData;
 
-  // Datos del alumno con grupo
+  // Datos del alumno
   const { data: alumno } = await supabaseAdmin
     .from("alumnos")
-    .select("id, nombre, grupo_id, grupos(nombre, grado, turno)")
+    .select("id, nombre, grupo_id")
     .eq("id", alumno_id)
     .maybeSingle();
+
+  // Datos del grupo por separado
+  const { data: grupo } = alumno?.grupo_id ? await supabaseAdmin
+    .from("grupos")
+    .select("id, nombre, grado, grupo, asignatura, etiqueta, turno")
+    .eq("id", alumno.grupo_id)
+    .maybeSingle() : { data: null };
 
   // Conducta de todos los periodos
   const { data: conductaRows } = await supabaseAdmin
@@ -37,7 +44,7 @@ export async function GET(req: NextRequest) {
     .order("creado_at", { ascending: true });
 
   // Calificaciones — obtener tareas del maestro para este grupo
-  const grupoId = alumno?.grupo_id;
+  const grupoId = alumno?.grupo_id ?? grupo?.id;
   let calificaciones: any[] = [];
 
   if (grupoId) {
@@ -72,7 +79,14 @@ export async function GET(req: NextRequest) {
     alumno: {
       id: alumno?.id,
       nombre: alumno?.nombre,
-      grupo: alumno?.grupos,
+      grupo: grupo ? {
+        nombre: grupo.nombre,
+        grado: grupo.grado,
+        grupo: grupo.grupo,
+        asignatura: grupo.asignatura,
+        etiqueta: grupo.etiqueta,
+        turno: grupo.turno,
+      } : null,
     },
     conductas: conductaRows || [],
     calificaciones,
