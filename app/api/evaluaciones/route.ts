@@ -11,10 +11,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "maestroId requerido" }, { status: 400 });
   }
 
+  // Obtener los grupos del maestro primero
+  const { data: grupos } = await supabaseAdmin
+    .from("grupos")
+    .select("id")
+    .eq("maestro_id", maestroId);
+
+  if (!grupos || grupos.length === 0) {
+    return NextResponse.json({ evaluaciones: [] });
+  }
+
+  const grupoIds = grupos.map((g: any) => g.id);
+
   let query = supabaseAdmin
     .from("evaluaciones")
-    .select("*, grupos(nombre, grado, grupo)")
-    .eq("grupos.maestro_id", maestroId)
+    .select("id, grupo_id, nombre, fecha, tipo")
+    .in("grupo_id", grupoIds)
     .order("fecha", { ascending: false });
 
   if (grupoId) {
