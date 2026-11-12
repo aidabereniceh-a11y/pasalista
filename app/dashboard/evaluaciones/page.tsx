@@ -51,14 +51,14 @@ export default function EvaluacionesPage() {
   const [guardado, setGuardado] = useState(false);
 
   useEffect(() => {
-    const data = localStorage.getItem("maestro");
-    if (!data) { router.push("/login"); return; }
-    const m = JSON.parse(data);
-    setMaestro(m);
-    fetch(`/api/grupos?maestroId=${m.id}`)
-      .then(r => r.json())
-      .then(setGrupos);
-  }, [router]);
+  const data = localStorage.getItem("maestro");
+  if (!data) { router.push("/login"); return; }
+  const m = JSON.parse(data);
+  setMaestro(m);
+  fetch(`/api/grupos?maestroId=${m.id}`)
+    .then(r => r.json())
+    .then(data => setGrupos(data.grupos || []));  // ← fix aquí
+}, [router]);
 
   useEffect(() => {
     if (!grupoSeleccionado || !maestro) return;
