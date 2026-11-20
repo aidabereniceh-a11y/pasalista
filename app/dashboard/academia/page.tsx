@@ -1,5 +1,5 @@
-export const runtime = "edge";
 "use client";
+export const runtime = "edge";
 import { useState, useEffect } from "react";
 
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -235,7 +235,7 @@ export default function AcademiaDashboard() {
           </button>
           <button
             onClick={() => setSeccionActiva("alertas")}
-            style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "14px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "alertas" ? "rgba(239,68,68,0.2)" : "transparent", color: seccionActiva === "alertas" ? "#f87171" : "#64748b", position: "relative" }}
+            style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "14px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "alertas" ? "rgba(239,68,68,0.2)" : "transparent", color: seccionActiva === "alertas" ? "#f87171" : "#64748b" }}
           >
             ⚠️ Alertas de falta
           </button>
@@ -311,7 +311,7 @@ export default function AcademiaDashboard() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
                 <h2 style={{ fontSize: "16px", fontWeight: "600", margin: 0, color: "#94a3b8" }}>Alumnos que faltaron hoy</h2>
-                <p style={{ fontSize: "12px", color: "#475569", margin: "4px 0 0" }}>Solo alumnos con clase programada hoy y sin registro de asistencia o con falta.</p>
+                <p style={{ fontSize: "12px", color: "#475569", margin: "4px 0 0" }}>Solo alumnos con clase programada hoy y sin registro o con falta.</p>
               </div>
               <button onClick={cargarAlertas} disabled={cargandoAlertas} style={{ background: "rgba(255,255,255,0.08)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
                 {cargandoAlertas ? "Cargando..." : "🔄 Actualizar"}
