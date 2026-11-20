@@ -6,10 +6,11 @@ export const runtime = "edge";
 // PUT /api/alumnos/[id]/ficha — actualizar datos de contacto del alumno
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const alumnoId = parseInt(params.id, 10);
+    const { id } = await params;
+    const alumnoId = parseInt(id, 10);
     if (isNaN(alumnoId)) {
       return NextResponse.json({ error: "ID inválido" }, { status: 400 });
     }
@@ -67,10 +68,11 @@ export async function PUT(
 // GET /api/alumnos/[id]/ficha — obtener datos de contacto del alumno
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const alumnoId = parseInt(params.id, 10);
+    const { id } = await params;
+    const alumnoId = parseInt(id, 10);
     if (isNaN(alumnoId)) {
       return NextResponse.json({ error: "ID inválido" }, { status: 400 });
     }
