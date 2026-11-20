@@ -45,6 +45,18 @@ export default function Dashboard() {
   const [dandoDeBajaId, setDandoDeBajaId] = useState<number | null>(null);
   const [alumnoABaja, setAlumnoABaja] = useState<any>(null);
 
+  // --- Ficha del alumno ---
+  const [fichaAlumno, setFichaAlumno] = useState<any>(null);
+  const [editFicha, setEditFicha] = useState({
+    tutor_nombre: "",
+    tutor_whatsapp: "",
+    fecha_inscripcion: "",
+    notas: "",
+  });
+  const [guardandoFicha, setGuardandoFicha] = useState(false);
+  const [mensajeFicha, setMensajeFicha] = useState("");
+  const [colorFicha, setColorFicha] = useState("");
+
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (!data) { window.location.href = "/login"; return; }
@@ -149,7 +161,6 @@ export default function Dashboard() {
     });
     const data = await res.json();
 
-    // Ya existe un grupo igual: preguntamos antes de crear otro
     if (res.status === 409 && data.duplicado) {
       setGrupoDuplicado(data.error || "Ya tienes un grupo con ese nombre.");
       setCargando(false);
@@ -237,7 +248,6 @@ export default function Dashboard() {
         throw new Error(data.error || "No se pudo eliminar el grupo.");
       }
 
-      // Confirmamos que de verdad ya no aparece en la lista
       const lista = await cargarGrupos(maestro.id);
       if (lista.some((x: any) => String(x.id) === String(grupoBorrado.id))) {
         throw new Error("El grupo no se pudo eliminar. Intenta de nuevo o escríbenos por WhatsApp.");
@@ -257,8 +267,6 @@ export default function Dashboard() {
       if (generandoGafetesId) return;
       setGenerandoGafetesId(g.id);
       try {
-        // Los alumnos se piden a la API (con service role). La consulta directa a Supabase
-        // desde el navegador regresaba una lista vacía por el RLS, y por eso los gafetes salían en blanco.
         const res = await fetch(`/api/alumnos?grupoId=${g.id}&maestroId=${maestro.id}`);
         const data = await res.json();
         const alumnosGrupo = (data.alumnos || [])
@@ -270,7 +278,6 @@ export default function Dashboard() {
           return;
         }
 
-        // Abre la ventana para elegir color, diseño y tamaño antes de imprimir
         setGafetesAPersonalizar({ grupo: g, alumnos: alumnosGrupo });
       } catch {
         alert("No se pudieron generar los gafetes. Intenta de nuevo.");
@@ -408,7 +415,54 @@ export default function Dashboard() {
     cargarAlumnosGestion(grupoGestionando.id);
   };
 
-  // Grupos que se ven iguales (mismo nombre, asignatura y escuela/turno)
+  // --- Ficha del alumno ---
+  const abrirFicha = (a: any) => {
+    setFichaAlumno(a);
+    setEditFicha({
+      tutor_nombre: a.tutor_nombre || "",
+      tutor_whatsapp: a.tutor_whatsapp || "",
+      fecha_inscripcion: a.fecha_inscripcion || "",
+      notas: a.notas || "",
+    });
+    setMensajeFicha("");
+    setColorFicha("");
+  };
+
+  const guardarFicha = async () => {
+    if (!fichaAlumno || guardandoFicha) return;
+    setGuardandoFicha(true);
+    setMensajeFicha("");
+
+    const res = await fetch(`/api/alumnos/${fichaAlumno.id}/ficha`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        maestroId: maestro.id,
+        tutor_nombre: editFicha.tutor_nombre.trim(),
+        tutor_whatsapp: editFicha.tutor_whatsapp.trim(),
+        fecha_inscripcion: editFicha.fecha_inscripcion || null,
+        notas: editFicha.notas.trim(),
+      }),
+    });
+    const data = await res.json();
+    setGuardandoFicha(false);
+
+    if (!res.ok) {
+      setColorFicha("#ef4444");
+      setMensajeFicha(data.error || "No se pudo guardar");
+      return;
+    }
+
+    setColorFicha("#22c55e");
+    setMensajeFicha("Guardado correctamente");
+    // Actualizar el alumno en la lista local
+    setAlumnosGestion((prev) =>
+      prev.map((a) => a.id === fichaAlumno.id ? { ...a, ...editFicha } : a)
+    );
+    setFichaAlumno((prev: any) => ({ ...prev, ...editFicha }));
+  };
+
+  // Grupos que se ven iguales
   const claveGrupo = (g: any) =>
     [g.nombre, g.asignatura, g.etiqueta]
       .map((t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase())
@@ -465,8 +519,8 @@ export default function Dashboard() {
               </button>
             )}
             <a href="/dashboard/evaluaciones" style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "700", textDecoration: "none" }}>
-  📝 Evaluaciones
-</a>
+              📝 Evaluaciones
+            </a>
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesion
             </button>
@@ -632,35 +686,20 @@ export default function Dashboard() {
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "400px", width: "100%" }}>
             <h3 style={{ margin: "0 0 6px 0", fontSize: "18px", fontWeight: "700", textAlign: "center" }}>Elige como pagar</h3>
             <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px", textAlign: "center" }}>Plan Premium - $49 MXN/mes</p>
-
-            <button
-              onClick={irASuscripcion}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
-            >
+            <button onClick={irASuscripcion} disabled={cargandoPago} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}>
               💳 Suscripción automática (tarjeta)
             </button>
             <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
               Se renueva sola cada mes. Cancela cuando quieras.<br />
               <strong style={{ color: "#fbbf24" }}>Importante:</strong> inicia sesión en Mercado Pago con el mismo correo que usas en PasaLista ({maestro?.email}).
             </p>
-
-            <button
-              onClick={irAPagarManual}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}
-            >
+            <button onClick={irAPagarManual} disabled={cargandoPago} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: cargandoPago ? "not-allowed" : "pointer", marginBottom: "10px" }}>
               🏪 Pago único (tarjeta, OXXO, SPEI)
             </button>
             <p style={{ margin: "0 0 20px 0", color: "#64748b", fontSize: "11px", textAlign: "center" }}>
               Pagas cada mes manualmente, sin renovación automática. Recomendado si tu correo de Mercado Pago es distinto al de PasaLista.
             </p>
-
-            <button
-              onClick={() => setMostrarModalPago(false)}
-              disabled={cargandoPago}
-              style={{ width: "100%", padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}
-            >
+            <button onClick={() => setMostrarModalPago(false)} disabled={cargandoPago} style={{ width: "100%", padding: "10px", background: "none", color: "#94a3b8", border: "none", fontSize: "13px", cursor: "pointer" }}>
               Cancelar
             </button>
           </div>
@@ -719,6 +758,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Modal Gestionar alumnos — ahora con clic en nombre para abrir ficha */}
       {grupoGestionando && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "480px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
@@ -726,7 +766,8 @@ export default function Dashboard() {
               <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>Gestionar alumnos</h3>
               <button onClick={() => setGrupoGestionando(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
             </div>
-            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoGestionando.nombre}</p>
+            <p style={{ margin: "0 0 4px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoGestionando.nombre}</p>
+            <p style={{ margin: "0 0 12px 0", color: "#64748b", fontSize: "11px" }}>Toca el nombre de un alumno para ver o editar su ficha.</p>
 
             <div style={{ overflowY: "auto", marginBottom: "16px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
               {cargandoAlumnosGestion ? (
@@ -736,11 +777,21 @@ export default function Dashboard() {
               ) : (
                 alumnosGestion.map((a) => (
                   <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span style={{ fontSize: "13px", color: "#e2e8f0" }}>{a.nombre}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <button
+                        onClick={() => abrirFicha(a)}
+                        style={{ background: "none", border: "none", color: "#e2e8f0", fontSize: "13px", fontWeight: "600", cursor: "pointer", padding: 0, textAlign: "left", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.2)" }}
+                      >
+                        {a.nombre}
+                      </button>
+                      {a.tutor_whatsapp && (
+                        <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#4ade80" }}>📱 {a.tutor_whatsapp}</p>
+                      )}
+                    </div>
                     <button
                       onClick={() => setAlumnoABaja(a)}
                       disabled={dandoDeBajaId === a.id}
-                      style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", cursor: dandoDeBajaId === a.id ? "not-allowed" : "pointer" }}
+                      style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", cursor: dandoDeBajaId === a.id ? "not-allowed" : "pointer", flexShrink: 0, marginLeft: "8px" }}
                     >
                       {dandoDeBajaId === a.id ? "..." : "Dar de baja"}
                     </button>
@@ -769,6 +820,89 @@ export default function Dashboard() {
                 {mensajeGestion}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ficha del alumno */}
+      {fichaAlumno && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1100 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>Ficha del alumno</h3>
+              <button onClick={() => setFichaAlumno(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ margin: "0 0 20px 0", color: "#a5b4fc", fontSize: "13px", fontWeight: "600" }}>{fichaAlumno.nombre}</p>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>Nombre del tutor / familiar</label>
+              <input
+                value={editFicha.tutor_nombre}
+                onChange={(e) => setEditFicha((p) => ({ ...p, tutor_nombre: e.target.value }))}
+                maxLength={100}
+                placeholder="Ej. María López"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "14px", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>WhatsApp del tutor (10 dígitos)</label>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  value={editFicha.tutor_whatsapp}
+                  onChange={(e) => setEditFicha((p) => ({ ...p, tutor_whatsapp: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                  placeholder="5512345678"
+                  inputMode="numeric"
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "14px", boxSizing: "border-box" }}
+                />
+                {editFicha.tutor_whatsapp.length === 10 && (
+                  <a
+                    href={`https://wa.me/52${editFicha.tutor_whatsapp}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "10px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: "700", textDecoration: "none", whiteSpace: "nowrap" }}
+                  >
+                    💬 Escribir
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>Fecha de inscripción</label>
+              <input
+                type="date"
+                value={editFicha.fecha_inscripcion}
+                onChange={(e) => setEditFicha((p) => ({ ...p, fecha_inscripcion: e.target.value }))}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "14px", boxSizing: "border-box", colorScheme: "dark" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>Notas</label>
+              <textarea
+                value={editFicha.notas}
+                onChange={(e) => setEditFicha((p) => ({ ...p, notas: e.target.value }))}
+                placeholder="Alergias, observaciones, contacto adicional…"
+                rows={3}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box" }}
+              />
+            </div>
+
+            {mensajeFicha && (
+              <div style={{ marginBottom: "12px", background: colorFicha, color: "white", padding: "10px", borderRadius: "8px", fontSize: "13px", fontWeight: "600" }}>
+                {mensajeFicha}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setFichaAlumno(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+                Cerrar
+              </button>
+              <button onClick={guardarFicha} disabled={guardandoFicha} style={{ flex: 1, padding: "12px", background: guardandoFicha ? "#475569" : "linear-gradient(135deg, #667eea, #764ba2)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: guardandoFicha ? "not-allowed" : "pointer" }}>
+                {guardandoFicha ? "Guardando..." : "Guardar ficha"}
+              </button>
+            </div>
           </div>
         </div>
       )}
