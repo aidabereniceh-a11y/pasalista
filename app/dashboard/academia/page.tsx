@@ -16,7 +16,12 @@ export default function AcademiaDashboard() {
 
   const [alertas, setAlertas] = useState<any[]>([]);
   const [cargandoAlertas, setCargandoAlertas] = useState(false);
-  const [seccionActiva, setSeccionActiva] = useState<"actividades" | "alertas">("actividades");
+  const [seccionActiva, setSeccionActiva] = useState<"actividades" | "alertas" | "resumen">("actividades");
+
+  // Resumen de pagos
+  const [resumen, setResumen] = useState<any[]>([]);
+  const [mesMostrado, setMesMostrado] = useState("");
+  const [cargandoResumen, setCargandoResumen] = useState(false);
 
   const [actividadGestionando, setActividadGestionando] = useState<any>(null);
   const [alumnosGestion, setAlumnosGestion] = useState<any[]>([]);
@@ -85,8 +90,19 @@ export default function AcademiaDashboard() {
     setCargandoAlertas(false);
   };
 
+  const cargarResumen = async () => {
+    if (!maestro) return;
+    setCargandoResumen(true);
+    const res = await fetch(`/api/pagos/resumen?maestroId=${maestro.id}`);
+    const data = await res.json();
+    setResumen(data.resumen || []);
+    setMesMostrado(data.mes || "");
+    setCargandoResumen(false);
+  };
+
   useEffect(() => {
     if (seccionActiva === "alertas" && maestro) cargarAlertas();
+    if (seccionActiva === "resumen" && maestro) cargarResumen();
   }, [seccionActiva, maestro]);
 
   const crearActividad = async () => {
@@ -310,12 +326,15 @@ export default function AcademiaDashboard() {
         </div>
 
         {/* Tabs principales */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "24px", background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "6px" }}>
-          <button onClick={() => setSeccionActiva("actividades")} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "14px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "actividades" ? "rgba(14,165,233,0.25)" : "transparent", color: seccionActiva === "actividades" ? "#38bdf8" : "#64748b" }}>
+        <div style={{ display: "flex", gap: "6px", marginBottom: "24px", background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "6px" }}>
+          <button onClick={() => setSeccionActiva("actividades")} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "actividades" ? "rgba(14,165,233,0.25)" : "transparent", color: seccionActiva === "actividades" ? "#38bdf8" : "#64748b" }}>
             🧘 Actividades
           </button>
-          <button onClick={() => setSeccionActiva("alertas")} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "14px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "alertas" ? "rgba(239,68,68,0.2)" : "transparent", color: seccionActiva === "alertas" ? "#f87171" : "#64748b" }}>
-            ⚠️ Alertas de falta
+          <button onClick={() => setSeccionActiva("resumen")} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "resumen" ? "rgba(34,197,94,0.2)" : "transparent", color: seccionActiva === "resumen" ? "#4ade80" : "#64748b" }}>
+            💰 Pagos
+          </button>
+          <button onClick={() => setSeccionActiva("alertas")} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: "600", cursor: "pointer", background: seccionActiva === "alertas" ? "rgba(239,68,68,0.2)" : "transparent", color: seccionActiva === "alertas" ? "#f87171" : "#64748b" }}>
+            ⚠️ Alertas
           </button>
         </div>
 
@@ -415,6 +434,106 @@ export default function AcademiaDashboard() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* SECCIÓN RESUMEN DE PAGOS */}
+        {seccionActiva === "resumen" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: "600", margin: 0, color: "#94a3b8" }}>Resumen de pagos</h2>
+                {mesMostrado && <p style={{ fontSize: "12px", color: "#475569", margin: "4px 0 0", textTransform: "capitalize" }}>Total cobrado en {mesMostrado}</p>}
+              </div>
+              <button onClick={cargarResumen} disabled={cargandoResumen} style={{ background: "rgba(255,255,255,0.08)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
+                {cargandoResumen ? "Cargando..." : "🔄 Actualizar"}
+              </button>
+            </div>
+
+            {cargandoResumen ? (
+              <div style={{ textAlign: "center", padding: "48px", color: "#64748b" }}>Cargando resumen...</div>
+            ) : resumen.length === 0 ? (
+              <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "48px", textAlign: "center", color: "#64748b" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>💰</div>
+                <p style={{ margin: 0 }}>No hay actividades con alumnos todavía</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "20px" }}>
+                {resumen.map((act) => {
+                  const conPago = act.alumnos.filter((a: any) => a.ultimoPago);
+                  const sinPago = act.alumnos.filter((a: any) => !a.ultimoPago);
+                  const pendientes = act.alumnos.filter((a: any) => a.ultimoPago?.estado === "pendiente" || a.ultimoPago?.estado === "vencido");
+
+                  return (
+                    <div key={act.grupo_id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "16px", overflow: "hidden" }}>
+                      {/* Header actividad */}
+                      <div style={{ background: "rgba(14,165,233,0.1)", borderBottom: "1px solid rgba(14,165,233,0.15)", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                        <div>
+                          <span style={{ fontSize: "16px", fontWeight: "700", color: "#7dd3fc" }}>{act.nombre}</span>
+                          {act.etiqueta && <span style={{ marginLeft: "10px", fontSize: "12px", color: "#38bdf8" }}>🕐 {act.etiqueta}</span>}
+                          <p style={{ margin: "3px 0 0", fontSize: "12px", color: "#64748b" }}>{act.total_alumnos} alumno{act.total_alumnos !== 1 ? "s" : ""}</p>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>Cobrado este mes</p>
+                          <p style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#4ade80" }}>
+                            {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(act.total_mes)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Lista de alumnos */}
+                      <div style={{ padding: "4px 0" }}>
+                        {act.alumnos.length === 0 ? (
+                          <p style={{ padding: "14px 18px", color: "#475569", fontSize: "13px", margin: 0 }}>Sin alumnos</p>
+                        ) : (
+                          act.alumnos.map((alumno: any) => {
+                            const p = alumno.ultimoPago;
+                            const esProblema = p?.estado === "pendiente" || p?.estado === "vencido";
+                            const sinRegistro = !p;
+
+                            return (
+                              <div key={alumno.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: esProblema ? "rgba(239,68,68,0.04)" : sinRegistro ? "rgba(251,191,36,0.04)" : "transparent", flexWrap: "wrap", gap: "6px" }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <span style={{ fontSize: "13px", fontWeight: "600", color: esProblema ? "#fca5a5" : sinRegistro ? "#fde68a" : "#e2e8f0" }}>
+                                    {sinRegistro ? "⚠️ " : esProblema ? "🔴 " : "✅ "}{alumno.nombre}
+                                  </span>
+                                  {p && (
+                                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>
+                                      {p.concepto} · {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(p.monto)}
+                                      {p.fecha_pago ? ` · ${p.fecha_pago.split("-").reverse().join("/")}` : ""}
+                                    </p>
+                                  )}
+                                  {sinRegistro && <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#f59e0b" }}>Sin pagos registrados</p>}
+                                </div>
+                                {p && (
+                                  <span style={{
+                                    fontSize: "11px", fontWeight: "600", padding: "3px 10px", borderRadius: "10px",
+                                    background: p.estado === "pagado" ? "rgba(34,197,94,0.15)" : p.estado === "pendiente" ? "rgba(251,191,36,0.15)" : "rgba(239,68,68,0.15)",
+                                    color: p.estado === "pagado" ? "#4ade80" : p.estado === "pendiente" ? "#fbbf24" : "#f87171",
+                                    border: `1px solid ${p.estado === "pagado" ? "rgba(34,197,94,0.3)" : p.estado === "pendiente" ? "rgba(251,191,36,0.3)" : "rgba(239,68,68,0.3)"}`,
+                                  }}>
+                                    {p.estado}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Footer resumen rápido */}
+                      {act.alumnos.length > 0 && (
+                        <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "12px", color: "#4ade80" }}>✅ {conPago.filter((a: any) => a.ultimoPago?.estado === "pagado").length} pagados</span>
+                          {pendientes.length > 0 && <span style={{ fontSize: "12px", color: "#fbbf24" }}>⏳ {pendientes.length} pendiente{pendientes.length !== 1 ? "s" : ""}</span>}
+                          {sinPago.length > 0 && <span style={{ fontSize: "12px", color: "#f59e0b" }}>⚠️ {sinPago.length} sin registro</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
