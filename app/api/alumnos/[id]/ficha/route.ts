@@ -23,7 +23,7 @@ export async function PUT(
   // Verificar que el alumno pertenece a un grupo de este maestro
   const { data: alumno, error: errorAlumno } = await supabaseAdmin
     .from("alumnos")
-    .select("id, grupos!inner(maestro_id)")
+    .select("id, grupo_id")
     .eq("id", alumnoId)
     .single();
 
@@ -31,9 +31,11 @@ export async function PUT(
     return Response.json({ error: "Alumno no encontrado" }, { status: 404 });
   }
 
-  const grupo = Array.isArray((alumno as any).grupos)
-    ? (alumno as any).grupos[0]
-    : (alumno as any).grupos;
+  const { data: grupo } = await supabaseAdmin
+    .from("grupos")
+    .select("maestro_id")
+    .eq("id", (alumno as any).grupo_id)
+    .single();
 
   if (!grupo || String(grupo.maestro_id) !== String(maestroId)) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
@@ -87,7 +89,7 @@ export async function GET(
 
   const { data: alumno, error } = await supabaseAdmin
     .from("alumnos")
-    .select("id, nombre, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas, dias_clase, grupos!inner(maestro_id)")
+    .select("id, nombre, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas, dias_clase, grupo_id")
     .eq("id", alumnoId)
     .single();
 
@@ -95,9 +97,11 @@ export async function GET(
     return Response.json({ error: "Alumno no encontrado" }, { status: 404 });
   }
 
-  const grupo = Array.isArray((alumno as any).grupos)
-    ? (alumno as any).grupos[0]
-    : (alumno as any).grupos;
+  const { data: grupo } = await supabaseAdmin
+    .from("grupos")
+    .select("maestro_id")
+    .eq("id", (alumno as any).grupo_id)
+    .single();
 
   if (!grupo || String(grupo.maestro_id) !== String(maestroId)) {
     return Response.json({ error: "No autorizado" }, { status: 403 });
