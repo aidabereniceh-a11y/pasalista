@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !grupoData) {
-    return Response.json({ error: "Error al crear el grupo" }, { status: 500 });
+    return Response.json({ error: "Error al crear el grupo", detalle: error?.message, codigo: error?.code }, { status: 500 });
   }
 
   const listaAlumnos = (alumnos || [])
