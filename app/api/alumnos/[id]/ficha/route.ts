@@ -1,116 +1,117 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
-
+// Colocar en: app/api/alumnos/[id]/ficha/route.ts
 export const runtime = "edge";
 
-// PUT /api/alumnos/[id]/ficha — actualizar datos de contacto del alumno
+import { NextRequest } from "next/server";
+import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const alumnoId = parseInt(id, 10);
-    if (isNaN(alumnoId)) {
-      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const { maestroId, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas } = body;
-
-    if (!maestroId) {
-      return NextResponse.json({ error: "maestroId requerido" }, { status: 400 });
-    }
-
-    // Verificar que el alumno pertenece a un grupo del maestro
-    const { data: alumno, error: fetchError } = await supabaseAdmin
-      .from("alumnos")
-      .select("id, grupo_id, grupos!inner(maestro_id)")
-      .eq("id", alumnoId)
-      .single();
-
-    if (fetchError || !alumno) {
-      return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-    }
-
-    const grupo = alumno.grupos as any;
-    if (String(grupo.maestro_id) !== String(maestroId)) {
-      return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
-    }
-
-    // Limpiar el número de WhatsApp: solo dígitos, máx 10
-    const whatsappLimpio = tutor_whatsapp
-      ? String(tutor_whatsapp).replace(/\D/g, "").slice(0, 10)
-      : null;
-
-    const { error: updateError } = await supabaseAdmin
-      .from("alumnos")
-      .update({
-        tutor_nombre: tutor_nombre || null,
-        tutor_whatsapp: whatsappLimpio || null,
-        fecha_inscripcion: fecha_inscripcion || null,
-        notas: notas || null,
-      })
-      .eq("id", alumnoId);
-
-    if (updateError) {
-      console.error("Error actualizando ficha:", updateError);
-      return NextResponse.json({ error: "No se pudo guardar la ficha" }, { status: 500 });
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("Error en PUT /api/alumnos/[id]/ficha:", err);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  const { id } = await params;
+  const alumnoId = parseInt(id, 10);
+  if (isNaN(alumnoId)) {
+    return Response.json({ error: "ID inválido" }, { status: 400 });
   }
+
+  const { maestroId, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas, dias_clase } = await request.json();
+
+  if (!maestroId) {
+    return Response.json({ error: "Falta maestroId" }, { status: 400 });
+  }
+
+  // Verificar que el alumno pertenece a un grupo de este maestro
+  const { data: alumno, error: errorAlumno } = await supabaseAdmin
+    .from("alumnos")
+    .select("id, grupos!inner(maestro_id)")
+    .eq("id", alumnoId)
+    .single();
+
+  if (errorAlumno || !alumno) {
+    return Response.json({ error: "Alumno no encontrado" }, { status: 404 });
+  }
+
+  const grupo = Array.isArray((alumno as any).grupos)
+    ? (alumno as any).grupos[0]
+    : (alumno as any).grupos;
+
+  if (!grupo || String(grupo.maestro_id) !== String(maestroId)) {
+    return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // Limpiar WhatsApp: solo dígitos, máx 10
+  const waLimpio = typeof tutor_whatsapp === "string"
+    ? tutor_whatsapp.replace(/\D/g, "").slice(0, 10)
+    : null;
+
+  // Limpiar días de clase: array de strings válidos
+  const diasValidos = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const diasLimpios = Array.isArray(dias_clase)
+    ? dias_clase.filter((d: string) => diasValidos.includes(d))
+    : null;
+
+  const { error: errorUpdate } = await supabaseAdmin
+    .from("alumnos")
+    .update({
+      tutor_nombre: tutor_nombre || null,
+      tutor_whatsapp: waLimpio || null,
+      fecha_inscripcion: fecha_inscripcion || null,
+      notas: notas || null,
+      ...(diasLimpios !== null ? { dias_clase: diasLimpios } : {}),
+    })
+    .eq("id", alumnoId);
+
+  if (errorUpdate) {
+    return Response.json({ error: "Error al guardar" }, { status: 500 });
+  }
+
+  return Response.json({ ok: true });
 }
 
-// GET /api/alumnos/[id]/ficha — obtener datos de contacto del alumno
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const alumnoId = parseInt(id, 10);
-    if (isNaN(alumnoId)) {
-      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const maestroId = searchParams.get("maestroId");
-
-    if (!maestroId) {
-      return NextResponse.json({ error: "maestroId requerido" }, { status: 400 });
-    }
-
-    const { data: alumno, error } = await supabaseAdmin
-      .from("alumnos")
-      .select("id, nombre, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas, grupos!inner(maestro_id)")
-      .eq("id", alumnoId)
-      .single();
-
-    if (error || !alumno) {
-      return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-    }
-
-    const grupo = alumno.grupos as any;
-    if (String(grupo.maestro_id) !== String(maestroId)) {
-      return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
-    }
-
-    return NextResponse.json({
-      alumno: {
-        id: alumno.id,
-        nombre: alumno.nombre,
-        tutor_nombre: alumno.tutor_nombre,
-        tutor_whatsapp: alumno.tutor_whatsapp,
-        fecha_inscripcion: alumno.fecha_inscripcion,
-        notas: alumno.notas,
-      },
-    });
-  } catch (err) {
-    console.error("Error en GET /api/alumnos/[id]/ficha:", err);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  const { id } = await params;
+  const alumnoId = parseInt(id, 10);
+  if (isNaN(alumnoId)) {
+    return Response.json({ error: "ID inválido" }, { status: 400 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const maestroId = searchParams.get("maestroId");
+
+  if (!maestroId) {
+    return Response.json({ error: "Falta maestroId" }, { status: 400 });
+  }
+
+  const { data: alumno, error } = await supabaseAdmin
+    .from("alumnos")
+    .select("id, nombre, tutor_nombre, tutor_whatsapp, fecha_inscripcion, notas, dias_clase, grupos!inner(maestro_id)")
+    .eq("id", alumnoId)
+    .single();
+
+  if (error || !alumno) {
+    return Response.json({ error: "Alumno no encontrado" }, { status: 404 });
+  }
+
+  const grupo = Array.isArray((alumno as any).grupos)
+    ? (alumno as any).grupos[0]
+    : (alumno as any).grupos;
+
+  if (!grupo || String(grupo.maestro_id) !== String(maestroId)) {
+    return Response.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  return Response.json({
+    alumno: {
+      id: alumno.id,
+      nombre: alumno.nombre,
+      tutor_nombre: (alumno as any).tutor_nombre,
+      tutor_whatsapp: (alumno as any).tutor_whatsapp,
+      fecha_inscripcion: (alumno as any).fecha_inscripcion,
+      notas: (alumno as any).notas,
+      dias_clase: (alumno as any).dias_clase || [],
+    },
+  });
 }
