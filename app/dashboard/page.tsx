@@ -204,9 +204,9 @@ export default function Dashboard() {
       body: JSON.stringify({
         grupo_id: grupoEditando.id,
         maestro_id: maestro.id,
-        nivel_educativo: editNivel,
+        nivel_educativo: grupoEditando.tipo === "academia" ? "academia" : editNivel,
         grado: gradoNum,
-        asignatura: ["secundaria", "media_superior", "superior"].includes(editNivel) ? editAsignatura.trim() : "",
+        asignatura: editAsignatura.trim(),
         etiqueta: editEtiqueta.trim(),
       }),
     });
@@ -726,25 +726,59 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Modal Editar grupo — campos diferentes para academia vs escolar */}
       {grupoEditando && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
           <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%" }}>
             <h3 style={{ margin: "0 0 4px 0", fontSize: "18px", fontWeight: "700" }}>Editar grupo</h3>
-            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoEditando.nombre}</p>
-            <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
-            <select value={editNivel} onChange={(e) => setEditNivel(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", marginBottom: "16px" }}>
-              {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
-            </select>
-            {["secundaria", "media_superior", "superior"].includes(editNivel) && (
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
-                <input value={editAsignatura} onChange={(e) => setEditAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
-              </div>
+            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px" }}>Grupo {grupoEditando.nombre}</p>
+
+            {grupoEditando.tipo === "academia" ? (
+              /* ── Campos para academia ── */
+              <>
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la actividad</label>
+                  <input
+                    value={editAsignatura}
+                    onChange={(e) => setEditAsignatura(e.target.value)}
+                    maxLength={80}
+                    placeholder="Ej. Yoga, Zumba, Danza, Pintura"
+                    style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Horario o etiqueta (opcional)</label>
+                  <input
+                    value={editEtiqueta}
+                    onChange={(e) => setEditEtiqueta(e.target.value)}
+                    maxLength={60}
+                    placeholder="Ej. Lunes y miércoles 6pm, Grupo mañanas"
+                    style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </>
+            ) : (
+              /* ── Campos para escolar ── */
+              <>
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nivel educativo</label>
+                  <select value={editNivel} onChange={(e) => setEditNivel(e.target.value)} style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px" }}>
+                    {[["preescolar","Preescolar"],["primaria","Primaria"],["secundaria","Secundaria"],["media_superior","Media superior"],["superior","Superior"]].map(([v, t]) => (<option key={v} value={v} style={{ background: "#1e1b4b" }}>{t}</option>))}
+                  </select>
+                </div>
+                {["secundaria", "media_superior", "superior"].includes(editNivel) && (
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Nombre de la asignatura (opcional)</label>
+                    <input value={editAsignatura} onChange={(e) => setEditAsignatura(e.target.value)} maxLength={80} placeholder="Ej. Matemáticas, Historia, Programación" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
+                  </div>
+                )}
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Escuela o turno (opcional)</label>
+                  <input value={editEtiqueta} onChange={(e) => setEditEtiqueta(e.target.value)} maxLength={60} placeholder="Ej. Matutino, Vespertino, Esc. Benito Juárez" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
+                </div>
+              </>
             )}
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Escuela o turno (opcional)</label>
-              <input value={editEtiqueta} onChange={(e) => setEditEtiqueta(e.target.value)} maxLength={60} placeholder="Ej. Matutino, Vespertino, Esc. Benito Juárez" style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "15px", boxSizing: "border-box" }} />
-            </div>
+
             {mensajeEdicion && (<div style={{ background: "#ef4444", color: "white", padding: "10px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "12px" }}>{mensajeEdicion}</div>)}
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => setGrupoEditando(null)} disabled={guardandoEdicion} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
