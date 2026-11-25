@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 
 export default function Login() {
@@ -29,7 +29,11 @@ export default function Login() {
       setColor("#ef4444");
       setMensaje(data.error || "Email o contrasena incorrectos");
     } else {
+      // Guardar en localStorage (como antes)
       localStorage.setItem("maestro", JSON.stringify(data.maestro));
+      // Guardar también en cookie para que Safari la lea al abrir QR en pestaña nueva
+      const valor = encodeURIComponent(JSON.stringify(data.maestro));
+      document.cookie = `maestro=${valor}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
       setColor("#22c55e");
       setMensaje("Bienvenido " + data.maestro.nombre + "!");
       setTimeout(() => {
