@@ -67,6 +67,13 @@ export default function AcademiaDashboard() {
   const [actividadAEliminar, setActividadAEliminar] = useState<any>(null);
   const [eliminando, setEliminando] = useState(false);
 
+  // Link de pago MP
+  const [generandoLink, setGenerandoLink] = useState(false);
+  const [linkPago, setLinkPago] = useState<{ link: string; whatsapp: string | null } | null>(null);
+  const [mensajeLink, setMensajeLink] = useState("");
+  const [conceptoLink, setConceptoLink] = useState("Mensualidad");
+  const [montoLink, setMontoLink] = useState("");
+
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (!data) { window.location.href = "/login"; return; }
@@ -264,6 +271,30 @@ export default function AcademiaDashboard() {
     cargarPagos(fichaAlumno.id, fichaAlumno.grupo_id);
   };
 
+  const generarLinkPago = async () => {
+    if (generandoLink || !fichaAlumno) return;
+    if (!conceptoLink.trim()) { setMensajeLink("Escribe el concepto"); return; }
+    if (!montoLink || parseFloat(montoLink) <= 0) { setMensajeLink("Escribe un monto válido"); return; }
+    setGenerandoLink(true); setMensajeLink(""); setLinkPago(null);
+    const res = await fetch("/api/academia/link-pago", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        maestroId: maestro.id,
+        alumnoId: fichaAlumno.id,
+        grupoId: fichaAlumno.grupo_id,
+        concepto: conceptoLink.trim(),
+        monto: montoLink,
+        alumnoNombre: fichaAlumno.nombre,
+        tutorWhatsapp: editFicha.tutor_whatsapp,
+      }),
+    });
+    const data = await res.json();
+    setGenerandoLink(false);
+    if (!res.ok) { setMensajeLink(data.error || "Error al generar el link"); return; }
+    setLinkPago({ link: data.link, whatsapp: data.whatsapp });
+  };
+
   const eliminarPago = async (pago: any) => {
     const res = await fetch(`/api/pagos?id=${pago.id}&grupoId=${fichaAlumno.grupo_id}&maestroId=${maestro.id}`, {
       method: "DELETE",
@@ -319,6 +350,9 @@ export default function AcademiaDashboard() {
             <a href="/dashboard" style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
               🏫 Vista Escuela
             </a>
+            <a href="/dashboard/perfil" style={{ background: "rgba(255,255,255,0.08)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none" }}>
+              ⚙️ Perfil
+            </a>
             <button onClick={cerrarSesion} style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", cursor: "pointer" }}>
               Cerrar sesión
             </button>
@@ -341,11 +375,22 @@ export default function AcademiaDashboard() {
         {/* SECCIÓN ACTIVIDADES */}
         {seccionActiva === "actividades" && (
           <>
+            {maestro.plan !== "premium" && (
+              <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "12px", padding: "12px 16px", marginBottom: "16px", color: "#c7d2fe", fontSize: "13px" }}>
+                📋 El plan gratis incluye <strong>1 grupo en total</strong> (escolar o academia). Para crear actividades ilimitadas, <a href="/dashboard" style={{ color: "#a5b4fc", fontWeight: 700 }}>actualiza a Premium desde el dashboard</a>.
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h2 style={{ fontSize: "16px", fontWeight: "600", margin: 0, color: "#94a3b8" }}>Mis actividades</h2>
-              <button onClick={() => setMostrarFormActividad(!mostrarFormActividad)} style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
-                + Nueva actividad
-              </button>
+              {(maestro.plan === "premium" || actividades.length === 0) ? (
+                <button onClick={() => setMostrarFormActividad(!mostrarFormActividad)} style={{ background: "linear-gradient(135deg, #0ea5e9, #0284c7)", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+                  + Nueva actividad
+                </button>
+              ) : (
+                <a href="/dashboard" style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "white", border: "none", padding: "10px 20px", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer", textDecoration: "none" }}>
+                  🔒 Premium para más
+                </a>
+              )}
             </div>
 
             {mostrarFormActividad && (
@@ -782,6 +827,108 @@ export default function AcademiaDashboard() {
                     })}
                   </div>
                 )}
+
+                {/* ── Link de pago MercadoPago ── */}
+                <div style={{ marginTop: "20px", background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: "12px", padding: "18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+                    <span style={{ fontSize: "18px" }}>💳</span>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "#38bdf8" }}>Enviar link de cobro (MercadoPago)</span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>Concepto</label>
+                      <input
+                        value={conceptoLink}
+                        onChange={(e) => setConceptoLink(e.target.value)}
+                        placeholder="Mensualidad noviembre"
+                        maxLength={80}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "13px", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", color: "#94a3b8", display: "block", marginBottom: "5px" }}>Monto ($)</label>
+                      <input
+                        type="number"
+                        value={montoLink}
+                        onChange={(e) => setMontoLink(e.target.value)}
+                        placeholder="500"
+                        min="1"
+                        step="0.01"
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "13px", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={generarLinkPago}
+                    disabled={generandoLink}
+                    style={{ width: "100%", padding: "11px", background: generandoLink ? "#475569" : "linear-gradient(135deg, #0ea5e9, #0284c7)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: generandoLink ? "not-allowed" : "pointer", marginBottom: "10px" }}
+                  >
+                    {generandoLink ? "Generando..." : "🔗 Generar link de cobro"}
+                  </button>
+
+                  {mensajeLink && !linkPago && (
+                    <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", padding: "10px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: "600" }}>
+                      {mensajeLink}
+                    </div>
+                  )}
+
+                  {linkPago && (
+                    <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: "10px", padding: "14px" }}>
+                      <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#4ade80", fontWeight: "700" }}>✅ Link generado</p>
+
+                      {/* Copiar link */}
+                      <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "8px", padding: "10px 12px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ flex: 1, fontSize: "11px", color: "#94a3b8", overflowX: "auto", whiteSpace: "nowrap" }}>{linkPago.link}</span>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(linkPago.link); }}
+                          style={{ background: "rgba(14,165,233,0.2)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.3)", padding: "6px 10px", borderRadius: "7px", fontSize: "12px", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                        >
+                          📋 Copiar
+                        </button>
+                      </div>
+
+                      {/* Botones acción */}
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <a
+                          href={linkPago.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ flex: 1, padding: "10px", background: "rgba(14,165,233,0.2)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.3)", borderRadius: "9px", fontSize: "13px", fontWeight: "700", textDecoration: "none", textAlign: "center" }}
+                        >
+                          🔗 Abrir link
+                        </a>
+                        {linkPago.whatsapp ? (
+                          <a
+                            href={linkPago.whatsapp}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ flex: 1, padding: "10px", background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "9px", fontSize: "13px", fontWeight: "700", textDecoration: "none", textAlign: "center" }}
+                          >
+                            💬 Enviar por WhatsApp
+                          </a>
+                        ) : (
+                          <span style={{ flex: 1, padding: "10px", background: "rgba(255,255,255,0.05)", color: "#475569", borderRadius: "9px", fontSize: "12px", textAlign: "center" }}>
+                            Sin WhatsApp guardado
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => { setLinkPago(null); setMensajeLink(""); setMontoLink(""); setConceptoLink("Mensualidad"); }}
+                        style={{ width: "100%", marginTop: "10px", padding: "8px", background: "none", border: "1px solid rgba(255,255,255,0.1)", color: "#64748b", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}
+                      >
+                        Generar otro link
+                      </button>
+                    </div>
+                  )}
+
+                  <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#475569", textAlign: "center" }}>
+                    ¿No tienes MP configurado?{" "}
+                    <a href="/dashboard/perfil" style={{ color: "#38bdf8" }}>Conéctalo en Perfil</a>
+                  </p>
+                </div>
               </div>
             )}
           </div>
