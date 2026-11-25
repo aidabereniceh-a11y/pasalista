@@ -1,7 +1,7 @@
 "use client";
 export const runtime = "edge";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. Obtener el token de MP del maestro
-  const { data: maestro, error: errMaestro } = await supabaseAdmin
+  const { data: maestro, error: errMaestro } = await supabase
     .from("maestros")
     .select("mp_access_token, nombre")
     .eq("id", maestroId)
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Verificar que el grupo pertenece al maestro
-  const { data: grupo, error: errGrupo } = await supabaseAdmin
+  const { data: grupo, error: errGrupo } = await supabase
     .from("grupos")
     .select("id, nombre, asignatura")
     .eq("id", grupoId)

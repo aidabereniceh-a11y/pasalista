@@ -1,7 +1,7 @@
 "use client";
 export const runtime = "edge";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const maestroId = searchParams.get("maestroId");
   if (!maestroId) return NextResponse.json({ error: "Falta maestroId" }, { status: 400 });
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("maestros")
     .select("id, nombre, email, plan, premium_hasta, mp_access_token")
     .eq("id", maestroId)
@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Token inválido. Debe empezar con APP_USR-" }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
+  const { error } = await supabase
     .from("maestros")
     .update({ mp_access_token: mp_access_token.trim() })
     .eq("id", maestroId);
