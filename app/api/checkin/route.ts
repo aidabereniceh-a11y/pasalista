@@ -13,7 +13,6 @@ export async function POST(request: Request) {
   }
 
   // Verifica que el grupo sea del maestro que hace la peticion
-  // (esto es lo que ahora hace imposible usar este endpoint sin sesion de maestro)
   const { data: grupo, error: errorGrupo } = await supabaseAdmin
     .from("grupos")
     .select("maestro_id")
@@ -59,9 +58,6 @@ export async function POST(request: Request) {
   const ultimaAccion = registrosHoy && registrosHoy.length > 0 ? registrosHoy[0].accion : "";
   const presenteHoy = registrosHoy ? registrosHoy.some((r: any) => r.accion === "Presente") : false;
 
-  // Ya no revisamos solo "presenteHoy": revisamos si YA HAY cualquier estatus hoy
-  // (Ausente, Retardo, Justificado o Presente), para que un "Presente" nuevo no
-  // pueda sobrescribir lo que el maestro ya marco por otra via.
   const yaTieneEstatusHoy = registrosHoy
     ? registrosHoy.some((r: any) => ESTATUS_VALIDOS.includes(r.accion))
     : false;
@@ -90,5 +86,35 @@ export async function POST(request: Request) {
     return Response.json({ error: "Error al registrar, intenta de nuevo" }, { status: 500 });
   }
 
-  return Response.json({ ok: true });
+  // --- Descuento automático de paquete al registrar "Presente" ---
+  if (accion === "Presente") {
+    const { data: ap } = await supabaseAdmin
+      .from("alumno_paquetes")
+      .select("id, clases_restantes")
+      .eq("alumno_id", alumnoId)
+      .eq("activo", true)
+      .maybeSingle();
+
+    if (ap && ap.clases_restantes > 0) {
+      await supabaseAdmin
+        .from("alumno_paquetes")
+        .update({ clases_restantes: ap.clases_restantes - 1 })
+        .eq("id", ap.id);
+    }
+  }
+  // --- Fin descuento automático ---
+
+  // Leer clases restantes para incluirlas en la respuesta
+  let clasesRestantes: number | null = null;
+  if (accion === "Presente") {
+    const { data: apActual } = await supabaseAdmin
+      .from("alumno_paquetes")
+      .select("clases_restantes")
+      .eq("alumno_id", alumnoId)
+      .eq("activo", true)
+      .maybeSingle();
+    if (apActual) clasesRestantes = apActual.clases_restantes;
+  }
+
+  return Response.json({ ok: true, clases_restantes: clasesRestantes });
 }

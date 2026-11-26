@@ -11,28 +11,23 @@ const ESTATUS = [
   { valor: "Justificado", label: "Justificado", color: "#3b82f6" },
 ];
 
-// Fecha de hoy según la hora del celular/computadora del maestro, formato "2026-09-30"
 function hoyLocal() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Suma o resta días a "2026-09-30"
 function moverDia(dia: string, dias: number) {
   const [y, m, d] = dia.split("-").map(Number);
   const f = new Date(y, m - 1, d + dias);
   return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
 }
 
-// "lunes, 29 de septiembre de 2026"
 function textoDia(dia: string) {
   const [y, m, d] = dia.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
-// Lee la sesión del maestro desde localStorage o cookie (respaldo para Safari iOS)
 function obtenerSesionMaestro(): any | null {
-  // 1. Intentar localStorage primero
   try {
     const data = localStorage.getItem("maestro");
     if (data) {
@@ -40,20 +35,16 @@ function obtenerSesionMaestro(): any | null {
       if (maestro?.id) return maestro;
     }
   } catch {}
-
-  // 2. Respaldo: leer de cookie (funciona cuando Safari abre QR en pestaña nueva)
   try {
     const match = document.cookie.match(/(?:^|;\s*)maestro=([^;]+)/);
     if (match) {
       const maestro = JSON.parse(decodeURIComponent(match[1]));
       if (maestro?.id) {
-        // Sincronizar de vuelta al localStorage para las próximas llamadas
         localStorage.setItem("maestro", JSON.stringify(maestro));
         return maestro;
       }
     }
   } catch {}
-
   return null;
 }
 
@@ -61,7 +52,7 @@ export default function AsistenciaPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const tokenUrl = searchParams.get("t"); // token de sesión en la URL del QR
+  const tokenUrl = searchParams.get("t");
 
   const [grupo, setGrupo] = useState<any>(null);
   const [alumnos, setAlumnos] = useState<any[]>([]);
@@ -71,8 +62,9 @@ export default function AsistenciaPage() {
   const [marcando, setMarcando] = useState<number | null>(null);
   const [fecha, setFecha] = useState(hoyLocal());
   const [cargandoDia, setCargandoDia] = useState(false);
-  // maestroId resuelto (ya sea por localStorage/cookie o por token en URL)
   const [maestroId, setMaestroId] = useState<number | null>(null);
+  // Mapa alumnoId -> clases_restantes
+  const [clasesMap, setClasesMap] = useState<Map<number, number>>(new Map());
   const fechaRef = useRef(fecha);
   const maestroIdRef = useRef<number | null>(null);
 
@@ -83,14 +75,12 @@ export default function AsistenciaPage() {
     if (!id) return;
 
     const iniciar = async () => {
-      // Caso 1: hay token en la URL → verificar con la BD (funciona con Control Center y cualquier scanner)
       if (tokenUrl) {
         try {
           const res = await fetch(`/api/verificar-token?t=${encodeURIComponent(tokenUrl)}&grupoId=${id}`);
           if (res.ok) {
             const data = await res.json();
             if (data.maestro) {
-              // Aprovechar para sincronizar la sesión local si no la tienen
               try {
                 if (!localStorage.getItem("maestro")) {
                   localStorage.setItem("maestro", JSON.stringify(data.maestro));
@@ -99,22 +89,22 @@ export default function AsistenciaPage() {
               maestroIdRef.current = data.maestro.id;
               setMaestroId(data.maestro.id);
               cargarDatosConId(data.maestro.id);
+              cargarPaquetes(data.maestro.id);
               const intervalo = setInterval(() => cargarDatosConId(data.maestro.id), 10000);
               const timer = setInterval(() => setHora(new Date()), 1000);
               return () => { clearInterval(intervalo); clearInterval(timer); };
             }
           }
         } catch {}
-        // Si el token falló, intentar con sesión local abajo
       }
 
-      // Caso 2: sin token en URL (o token inválido) → usar sesión local
       const maestro = obtenerSesionMaestro();
       if (!maestro) { window.location.href = "/login"; return; }
 
       maestroIdRef.current = maestro.id;
       setMaestroId(maestro.id);
       cargarDatosConId(maestro.id);
+      cargarPaquetes(maestro.id);
       const intervalo = setInterval(() => cargarDatosConId(maestro.id), 10000);
       const timer = setInterval(() => setHora(new Date()), 1000);
       return () => { clearInterval(intervalo); clearInterval(timer); };
@@ -123,7 +113,6 @@ export default function AsistenciaPage() {
     iniciar();
   }, [id]); // eslint-disable-line
 
-  // Al cambiar de día, recargar
   useEffect(() => {
     fechaRef.current = fecha;
     if (!id || maestroIdRef.current === null) return;
@@ -133,18 +122,30 @@ export default function AsistenciaPage() {
 
   const cargarDatosConId = async (mId: number) => {
     const diaSolicitado = fechaRef.current;
-
     const res = await fetch(`/api/asistencia-vivo?grupoId=${id}&maestroId=${mId}&fecha=${diaSolicitado}`);
     if (!res.ok) {
       if (res.status === 403) setNoAutorizado(true);
       return;
     }
     const resultado = await res.json();
-    // Si mientras tanto el maestro cambió de día, ignoramos esta respuesta vieja
     if (diaSolicitado !== fechaRef.current) return;
     setGrupo(resultado.grupo);
     setAlumnos(resultado.alumnos || []);
     setAsistencias(resultado.asistencias || []);
+  };
+
+  // Cargar clases restantes de todos los alumnos del grupo
+  const cargarPaquetes = async (mId: number) => {
+    try {
+      const res = await fetch(`/api/alumno-paquetes?grupoId=${id}&maestroId=${mId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const mapa = new Map<number, number>();
+      (data.alumno_paquetes || []).forEach((ap: any) => {
+        mapa.set(ap.alumno_id, ap.clases_restantes);
+      });
+      setClasesMap(mapa);
+    } catch {}
   };
 
   const cambiarFecha = (nueva: string) => {
@@ -189,6 +190,26 @@ export default function AsistenciaPage() {
     }
     await cargarDatosConId(mId);
     setMarcando(null);
+  };
+
+  // Ajuste manual de clases (+1 / -1)
+  const ajustarClases = async (alumnoId: number, ajuste: number) => {
+    try {
+      const res = await fetch("/api/alumno-paquetes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumnoId, ajuste }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.alumno_paquete) {
+        setClasesMap((prev) => {
+          const nuevo = new Map(prev);
+          nuevo.set(alumnoId, data.alumno_paquete.clases_restantes);
+          return nuevo;
+        });
+      }
+    } catch {}
   };
 
   const valoresEstatus = ESTATUS.map((e) => e.valor);
@@ -354,9 +375,29 @@ export default function AsistenciaPage() {
               <div style={{ textAlign: "center", padding: "20px", color: "#475569" }}>No hay alumnos en este grupo</div>
             ) : alumnos.map((a) => {
               const estatusActual = estadoManual.get(a.id);
+              const clases = clasesMap.has(a.id) ? clasesMap.get(a.id)! : null;
+              const alertaClases = clases !== null && clases <= 2;
               return (
                 <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <span style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: "600" }}>{a.nombre}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: "600" }}>{a.nombre}</span>
+                    {/* Clases restantes del paquete */}
+                    {clases !== null && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{
+                          fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "20px",
+                          background: alertaClases ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.15)",
+                          color: alertaClases ? "#f87171" : "#a5b4fc",
+                          border: `1px solid ${alertaClases ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.3)"}`,
+                        }}>
+                          {alertaClases ? "⚠️" : "🎫"} {clases} clase{clases !== 1 ? "s" : ""}
+                        </span>
+                        {/* Ajuste manual */}
+                        <button onClick={() => ajustarClases(a.id, 1)} title="Agregar clase" style={{ background: "none", border: "none", color: "#4ade80", fontSize: "14px", cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>＋</button>
+                        <button onClick={() => ajustarClases(a.id, -1)} title="Quitar clase" style={{ background: "none", border: "none", color: "#f87171", fontSize: "14px", cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>－</button>
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     {ESTATUS.map((e) => {
                       const activo = estatusActual === e.valor;
