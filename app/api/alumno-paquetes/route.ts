@@ -26,13 +26,26 @@ export async function GET(req: NextRequest) {
 
   // Si viene grupoId, traer todos los alumnos del grupo con su paquete
   if (grupoId) {
+    // Primero obtener IDs de alumnos del grupo
+    const { data: alumnosData, error: errAlumnos } = await supabase
+      .from("alumnos")
+      .select("id")
+      .eq("grupo_id", grupoId)
+      .eq("activo", true);
+
+    if (errAlumnos) return NextResponse.json({ error: errAlumnos.message }, { status: 500 });
+
+    const alumnoIds = (alumnosData || []).map((a: any) => a.id);
+
+    if (alumnoIds.length === 0) {
+      return NextResponse.json({ alumno_paquetes: [] });
+    }
+
     const { data, error } = await supabase
       .from("alumno_paquetes")
       .select("*, alumnos(id, nombre), paquetes(nombre, num_clases)")
       .eq("activo", true)
-      .in("alumno_id",
-        supabase.from("alumnos").select("id").eq("grupo_id", grupoId).eq("activo", true)
-      );
+      .in("alumno_id", alumnoIds);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ alumno_paquetes: data || [] });
@@ -86,7 +99,6 @@ export async function POST(req: NextRequest) {
 // PATCH /api/alumno-paquetes — ajuste manual de clases
 export async function PATCH(req: NextRequest) {
   const { alumnoId, ajuste } = await req.json();
-  // ajuste: +1, -1, o cualquier número
 
   if (!alumnoId || ajuste === undefined) {
     return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
