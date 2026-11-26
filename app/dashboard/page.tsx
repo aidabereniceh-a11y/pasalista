@@ -57,6 +57,29 @@ export default function Dashboard() {
   const [mensajeFicha, setMensajeFicha] = useState("");
   const [colorFicha, setColorFicha] = useState("");
 
+  // --- Paquetes (academia) ---
+  const [grupoPaquetes, setGrupoPaquetes] = useState<any>(null); // grupo cuyo panel está abierto
+  const [paquetesGrupo, setPaquetesGrupo] = useState<any[]>([]);
+  const [cargandoPaquetes, setCargandoPaquetes] = useState(false);
+  const [nuevoPaqNombre, setNuevoPaqNombre] = useState("");
+  const [nuevoPaqClases, setNuevoPaqClases] = useState("");
+  const [nuevoPaqPrecio, setNuevoPaqPrecio] = useState("");
+  const [creandoPaquete, setCreandoPaquete] = useState(false);
+  const [mensajePaquetes, setMensajePaquetes] = useState("");
+  const [colorMsgPaquetes, setColorMsgPaquetes] = useState("");
+  // Asignación de paquete a alumno
+  const [alumnosParaPaquete, setAlumnosParaPaquete] = useState<any[]>([]);
+  const [alumnosPaqueteActivo, setAlumnosPaqueteActivo] = useState<Map<number, any>>(new Map());
+  const [asignandoAlumnoId, setAsignandoAlumnoId] = useState<number | null>(null);
+
+  // --- Horario (academia) ---
+  const [grupoHorario, setGrupoHorario] = useState<any>(null);
+  const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const [horarioDias, setHorarioDias] = useState<string[]>([]);
+  const [horarioHora, setHorarioHora] = useState("");
+  const [guardandoHorario, setGuardandoHorario] = useState(false);
+  const [mensajeHorario, setMensajeHorario] = useState("");
+
   useEffect(() => {
     const data = localStorage.getItem("maestro");
     if (!data) { window.location.href = "/login"; return; }
@@ -455,11 +478,155 @@ export default function Dashboard() {
 
     setColorFicha("#22c55e");
     setMensajeFicha("Guardado correctamente");
-    // Actualizar el alumno en la lista local
     setAlumnosGestion((prev) =>
       prev.map((a) => a.id === fichaAlumno.id ? { ...a, ...editFicha } : a)
     );
     setFichaAlumno((prev: any) => ({ ...prev, ...editFicha }));
+  };
+
+  // --- Paquetes ---
+  const abrirPaquetes = async (g: any) => {
+    setGrupoPaquetes(g);
+    setNuevoPaqNombre("");
+    setNuevoPaqClases("");
+    setNuevoPaqPrecio("");
+    setMensajePaquetes("");
+    setPaquetesGrupo([]);
+    setAlumnosParaPaquete([]);
+    setAlumnosPaqueteActivo(new Map());
+    await Promise.all([
+      cargarPaquetesGrupo(g.id),
+      cargarAlumnosConPaquete(g.id),
+    ]);
+  };
+
+  const cargarPaquetesGrupo = async (grupoId: number) => {
+    setCargandoPaquetes(true);
+    const res = await fetch(`/api/paquetes?grupoId=${grupoId}&maestroId=${maestro.id}`);
+    const data = await res.json();
+    setPaquetesGrupo(data.paquetes || []);
+    setCargandoPaquetes(false);
+  };
+
+  const cargarAlumnosConPaquete = async (grupoId: number) => {
+    // Cargar alumnos del grupo
+    const resA = await fetch(`/api/alumnos?grupoId=${grupoId}&maestroId=${maestro.id}`);
+    const dataA = await resA.json();
+    const lista = (dataA.alumnos || []).filter((a: any) => a.activo !== false);
+    setAlumnosParaPaquete(lista);
+
+    // Cargar paquetes activos por alumno
+    const resP = await fetch(`/api/alumno-paquetes?grupoId=${grupoId}`);
+    const dataP = await resP.json();
+    const mapa = new Map<number, any>();
+    for (const ap of (dataP.alumno_paquetes || [])) {
+      mapa.set(ap.alumno_id, ap);
+    }
+    setAlumnosPaqueteActivo(mapa);
+  };
+
+  const crearPaquete = async () => {
+    if (creandoPaquete || !grupoPaquetes) return;
+    if (!nuevoPaqNombre.trim() || !nuevoPaqClases.trim()) {
+      setColorMsgPaquetes("#ef4444");
+      setMensajePaquetes("Nombre y número de clases son obligatorios");
+      return;
+    }
+    setCreandoPaquete(true);
+    setMensajePaquetes("");
+    const res = await fetch("/api/paquetes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupoId: grupoPaquetes.id,
+        maestroId: maestro.id,
+        nombre: nuevoPaqNombre.trim(),
+        num_clases: parseInt(nuevoPaqClases, 10),
+        precio: nuevoPaqPrecio ? parseFloat(nuevoPaqPrecio) : null,
+      }),
+    });
+    const data = await res.json();
+    setCreandoPaquete(false);
+    if (!res.ok) {
+      setColorMsgPaquetes("#ef4444");
+      setMensajePaquetes(data.error || "No se pudo crear el paquete");
+      return;
+    }
+    setColorMsgPaquetes("#22c55e");
+    setMensajePaquetes("Paquete creado");
+    setNuevoPaqNombre("");
+    setNuevoPaqClases("");
+    setNuevoPaqPrecio("");
+    cargarPaquetesGrupo(grupoPaquetes.id);
+  };
+
+  const eliminarPaquete = async (paqueteId: number) => {
+    if (!grupoPaquetes) return;
+    const res = await fetch(`/api/paquetes?paqueteId=${paqueteId}&maestroId=${maestro.id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      cargarPaquetesGrupo(grupoPaquetes.id);
+    }
+  };
+
+  const asignarPaquete = async (alumnoId: number, paqueteId: number) => {
+    if (!grupoPaquetes) return;
+    setAsignandoAlumnoId(alumnoId);
+    const res = await fetch("/api/alumno-paquetes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumnoId, paqueteId }),
+    });
+    setAsignandoAlumnoId(null);
+    if (res.ok) {
+      await cargarAlumnosConPaquete(grupoPaquetes.id);
+    }
+  };
+
+  // --- Horario ---
+  const abrirHorario = (g: any) => {
+    setGrupoHorario(g);
+    setHorarioDias(g.horario_dias || []);
+    setHorarioHora(g.horario_hora || "");
+    setMensajeHorario("");
+  };
+
+  const toggleDia = (dia: string) => {
+    setHorarioDias((prev) =>
+      prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
+    );
+  };
+
+  const guardarHorario = async () => {
+    if (!grupoHorario || guardandoHorario) return;
+    setGuardandoHorario(true);
+    setMensajeHorario("");
+    const res = await fetch("/api/grupos/horario", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grupoId: grupoHorario.id,
+        maestroId: maestro.id,
+        horario_dias: horarioDias,
+        horario_hora: horarioHora.trim(),
+      }),
+    });
+    const data = await res.json();
+    setGuardandoHorario(false);
+    if (!res.ok) {
+      setMensajeHorario(data.error || "No se pudo guardar el horario");
+      return;
+    }
+    setMensajeHorario("✅ Horario guardado");
+    // Actualizar el grupo en la lista local
+    setGrupos((prev) =>
+      prev.map((g) =>
+        g.id === grupoHorario.id
+          ? { ...g, horario_dias: horarioDias, horario_hora: horarioHora.trim() }
+          : g
+      )
+    );
   };
 
   // Grupos que se ven iguales
@@ -475,14 +642,21 @@ export default function Dashboard() {
 
   if (!maestro) return null;
 
-  // Token de sesión para incrustar en las URLs del QR
   const sessionToken: string = maestro.session_token || "";
 
-  // Helper para construir la URL de asistencia con token (si está disponible)
   const urlAsistencia = (grupoId: number) =>
     sessionToken
       ? `/asistencia/${grupoId}?t=${encodeURIComponent(sessionToken)}`
       : `/asistencia/${grupoId}`;
+
+  // Helper: texto de horario para mostrar en la tarjeta del grupo
+  const textoHorario = (g: any) => {
+    if (!g.horario_dias?.length && !g.horario_hora) return null;
+    const dias = (g.horario_dias || []).join(", ");
+    const hora = g.horario_hora || "";
+    if (dias && hora) return `${dias} · ${hora}`;
+    return dias || hora;
+  };
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0f1e 0%, #1e1b4b 100%)", fontFamily: "Arial, sans-serif", padding: "24px", color: "white" }}>
@@ -631,6 +805,12 @@ export default function Dashboard() {
                       🏫 {g.etiqueta}
                     </span>
                   )}
+                  {/* Horario badge para academias */}
+                  {g.tipo === "academia" && textoHorario(g) && (
+                    <span style={{ display: "inline-block", marginTop: "6px", marginLeft: "6px", background: "rgba(168,85,247,0.15)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.3)", padding: "2px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 700 }}>
+                      🕐 {textoHorario(g)}
+                    </span>
+                  )}
                   {conteoClaves[claveGrupo(g)] > 1 && (
                     <p style={{ margin: "6px 0 0 0", color: "#fbbf24", fontSize: "12px", maxWidth: "320px", lineHeight: 1.4 }}>
                       ⚠️ Tienes otro grupo que se ve igual. Usa <strong>✏️ Editar</strong> para agregarle la escuela o turno.
@@ -639,7 +819,6 @@ export default function Dashboard() {
                   <p style={{ margin: "4px 0 0 0", color: "#94a3b8", fontSize: "13px" }}>Creado el {new Date(g.created_at).toLocaleDateString("es-MX")}</p>
                 </div>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {/* ↓ CAMBIO CLAVE: "Ver asistencia" ahora usa urlAsistencia() que incluye el token */}
                   <a href={urlAsistencia(g.id)} style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver asistencia</a>
                   <a href={"/qr/" + g.id} style={{ background: "rgba(99,102,241,0.2)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", textDecoration: "none", display: "inline-block" }}>Ver QR</a>
                   <button
@@ -652,6 +831,21 @@ export default function Dashboard() {
                     style={{ background: "rgba(148,163,184,0.15)", color: "#cbd5e1", border: "1px solid rgba(148,163,184,0.25)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                     Gestionar alumnos
                   </button>
+                  {/* Botones exclusivos para academias */}
+                  {g.tipo === "academia" && (
+                    <>
+                      <button
+                        onClick={() => abrirPaquetes(g)}
+                        style={{ background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                        🎫 Paquetes
+                      </button>
+                      <button
+                        onClick={() => abrirHorario(g)}
+                        style={{ background: "rgba(168,85,247,0.15)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.3)", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                        🕐 Horario
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => handleGafetes(g)}
                     disabled={generandoGafetesId === g.id}
@@ -966,6 +1160,199 @@ export default function Dashboard() {
               </button>
               <button onClick={eliminarGrupo} disabled={eliminando} style={{ flex: 1, padding: "12px", background: eliminando ? "#7f1d1d" : "#ef4444", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: eliminando ? "not-allowed" : "pointer" }}>
                 {eliminando ? "Eliminando..." : errorEliminar ? "Intentar de nuevo" : "Sí, eliminar todo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal Paquetes (academia) ===== */}
+      {grupoPaquetes && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "560px", width: "100%", maxHeight: "88vh", display: "flex", flexDirection: "column", gap: "0" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>🎫 Paquetes de clases</h3>
+              <button onClick={() => setGrupoPaquetes(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "22px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>{grupoPaquetes.nombre}</p>
+
+            {/* --- Crear paquete --- */}
+            <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+              <p style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", color: "#34d399" }}>Nuevo paquete</p>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                <input
+                  value={nuevoPaqNombre}
+                  onChange={(e) => setNuevoPaqNombre(e.target.value)}
+                  placeholder="Nombre (ej. 10 clases)"
+                  maxLength={60}
+                  style={{ flex: 2, minWidth: "120px", padding: "9px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "13px", boxSizing: "border-box" }}
+                />
+                <input
+                  value={nuevoPaqClases}
+                  onChange={(e) => setNuevoPaqClases(e.target.value.replace(/\D/g, ""))}
+                  placeholder="# clases"
+                  inputMode="numeric"
+                  style={{ flex: 1, minWidth: "80px", padding: "9px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "13px", boxSizing: "border-box" }}
+                />
+                <input
+                  value={nuevoPaqPrecio}
+                  onChange={(e) => setNuevoPaqPrecio(e.target.value.replace(/[^\d.]/g, ""))}
+                  placeholder="$ precio (opcional)"
+                  inputMode="decimal"
+                  style={{ flex: 1, minWidth: "100px", padding: "9px 12px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "13px", boxSizing: "border-box" }}
+                />
+              </div>
+              <button
+                onClick={crearPaquete}
+                disabled={creandoPaquete}
+                style={{ width: "100%", padding: "10px", background: creandoPaquete ? "#475569" : "linear-gradient(135deg, #10b981, #059669)", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "700", cursor: creandoPaquete ? "not-allowed" : "pointer" }}
+              >
+                {creandoPaquete ? "Creando..." : "+ Crear paquete"}
+              </button>
+              {mensajePaquetes && (
+                <div style={{ marginTop: "8px", background: colorMsgPaquetes, color: "white", padding: "8px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "600" }}>
+                  {mensajePaquetes}
+                </div>
+              )}
+            </div>
+
+            {/* --- Lista de paquetes --- */}
+            <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Paquetes activos</p>
+            <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", marginBottom: "16px", overflowY: "auto", maxHeight: "140px" }}>
+              {cargandoPaquetes ? (
+                <div style={{ padding: "16px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>Cargando...</div>
+              ) : paquetesGrupo.length === 0 ? (
+                <div style={{ padding: "16px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>Aún no hay paquetes</div>
+              ) : (
+                paquetesGrupo.map((p) => (
+                  <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div>
+                      <span style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>{p.nombre}</span>
+                      <span style={{ marginLeft: "8px", fontSize: "12px", color: "#94a3b8" }}>{p.num_clases} clases</span>
+                      {p.precio && (
+                        <span style={{ marginLeft: "8px", fontSize: "12px", color: "#34d399" }}>${Number(p.precio).toLocaleString("es-MX")}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => eliminarPaquete(p.id)}
+                      style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* --- Asignar paquete a alumno --- */}
+            <p style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Asignar paquete por alumno</p>
+            <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", overflowY: "auto", flex: 1 }}>
+              {alumnosParaPaquete.length === 0 ? (
+                <div style={{ padding: "16px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No hay alumnos activos</div>
+              ) : (
+                alumnosParaPaquete.map((a) => {
+                  const ap = alumnosPaqueteActivo.get(a.id);
+                  return (
+                    <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexWrap: "wrap", gap: "6px" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>{a.nombre}</p>
+                        {ap ? (
+                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: ap.clases_restantes <= 2 ? "#f87171" : "#34d399" }}>
+                            {ap.clases_restantes <= 2 ? "⚠️" : "🎫"} {ap.clases_restantes} clases restantes · {ap.paquetes?.nombre}
+                          </p>
+                        ) : (
+                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>Sin paquete activo</p>
+                        )}
+                      </div>
+                      <select
+                        disabled={asignandoAlumnoId === a.id || paquetesGrupo.length === 0}
+                        onChange={async (e) => {
+                          if (!e.target.value) return;
+                          await asignarPaquete(a.id, parseInt(e.target.value, 10));
+                          e.target.value = "";
+                        }}
+                        style={{ padding: "6px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "12px", cursor: paquetesGrupo.length === 0 ? "not-allowed" : "pointer" }}
+                      >
+                        <option value="">{asignandoAlumnoId === a.id ? "Asignando..." : ap ? "Cambiar paquete" : "Asignar paquete"}</option>
+                        {paquetesGrupo.map((p) => (
+                          <option key={p.id} value={p.id} style={{ background: "#1e1b4b" }}>
+                            {p.nombre} ({p.num_clases} clases{p.precio ? ` · $${Number(p.precio).toLocaleString("es-MX")}` : ""})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal Horario (academia) ===== */}
+      {grupoHorario && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", zIndex: 1000 }}>
+          <div style={{ background: "#1e1b4b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "28px", maxWidth: "420px", width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700" }}>🕐 Horario del grupo</h3>
+              <button onClick={() => setGrupoHorario(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "22px", cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ margin: "0 0 20px 0", color: "#94a3b8", fontSize: "13px" }}>{grupoHorario.nombre}</p>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "10px" }}>Días de clase</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {DIAS.map((dia) => {
+                  const activo = horarioDias.includes(dia);
+                  return (
+                    <button
+                      key={dia}
+                      onClick={() => toggleDia(dia)}
+                      style={{
+                        padding: "7px 14px",
+                        borderRadius: "20px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        border: activo ? "1px solid rgba(168,85,247,0.6)" : "1px solid rgba(255,255,255,0.15)",
+                        background: activo ? "rgba(168,85,247,0.25)" : "rgba(255,255,255,0.06)",
+                        color: activo ? "#c084fc" : "#94a3b8",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {dia}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ fontSize: "13px", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Hora de inicio</label>
+              <input
+                type="time"
+                value={horarioHora}
+                onChange={(e) => setHorarioHora(e.target.value)}
+                style={{ width: "100%", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "white", fontSize: "16px", boxSizing: "border-box", colorScheme: "dark" }}
+              />
+            </div>
+
+            {mensajeHorario && (
+              <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: "600", background: mensajeHorario.startsWith("✅") ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: mensajeHorario.startsWith("✅") ? "#4ade80" : "#f87171", border: `1px solid ${mensajeHorario.startsWith("✅") ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}` }}>
+                {mensajeHorario}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setGrupoHorario(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "10px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+                Cerrar
+              </button>
+              <button
+                onClick={guardarHorario}
+                disabled={guardandoHorario}
+                style={{ flex: 1, padding: "12px", background: guardandoHorario ? "#475569" : "linear-gradient(135deg, #a855f7, #7c3aed)", color: "white", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: guardandoHorario ? "not-allowed" : "pointer" }}
+              >
+                {guardandoHorario ? "Guardando..." : "Guardar horario"}
               </button>
             </div>
           </div>
