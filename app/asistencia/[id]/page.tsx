@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 export const runtime = "edge";
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import * as XLSX from "xlsx";
 
 const ESTATUS = [
@@ -30,9 +30,39 @@ function textoDia(dia: string) {
   return new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
+// Lee la sesión del maestro desde localStorage o cookie (respaldo para Safari iOS)
+function obtenerSesionMaestro(): any | null {
+  // 1. Intentar localStorage primero
+  try {
+    const data = localStorage.getItem("maestro");
+    if (data) {
+      const maestro = JSON.parse(data);
+      if (maestro?.id) return maestro;
+    }
+  } catch {}
+
+  // 2. Respaldo: leer de cookie (funciona cuando Safari abre QR en pestaña nueva)
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)maestro=([^;]+)/);
+    if (match) {
+      const maestro = JSON.parse(decodeURIComponent(match[1]));
+      if (maestro?.id) {
+        // Sincronizar de vuelta al localStorage para las próximas llamadas
+        localStorage.setItem("maestro", JSON.stringify(maestro));
+        return maestro;
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
 export default function AsistenciaPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const tokenUrl = searchParams.get("t"); // token de sesión en la URL del QR
+
   const [grupo, setGrupo] = useState<any>(null);
   const [alumnos, setAlumnos] = useState<any[]>([]);
   const [asistencias, setAsistencias] = useState<any[]>([]);
@@ -41,36 +71,70 @@ export default function AsistenciaPage() {
   const [marcando, setMarcando] = useState<number | null>(null);
   const [fecha, setFecha] = useState(hoyLocal());
   const [cargandoDia, setCargandoDia] = useState(false);
+  // maestroId resuelto (ya sea por localStorage/cookie o por token en URL)
+  const [maestroId, setMaestroId] = useState<number | null>(null);
   const fechaRef = useRef(fecha);
+  const maestroIdRef = useRef<number | null>(null);
 
   const hoy = hoyLocal();
   const esHoy = fecha === hoy;
 
   useEffect(() => {
     if (!id) return;
-    const data = localStorage.getItem("maestro");
-    if (!data) { window.location.href = "/login"; return; }
-    cargarDatos();
-    const intervalo = setInterval(cargarDatos, 10000);
-    const timer = setInterval(() => setHora(new Date()), 1000);
-    return () => { clearInterval(intervalo); clearInterval(timer); };
+
+    const iniciar = async () => {
+      // Caso 1: hay token en la URL → verificar con la BD (funciona con Control Center y cualquier scanner)
+      if (tokenUrl) {
+        try {
+          const res = await fetch(`/api/verificar-token?t=${encodeURIComponent(tokenUrl)}&grupoId=${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.maestro) {
+              // Aprovechar para sincronizar la sesión local si no la tienen
+              try {
+                if (!localStorage.getItem("maestro")) {
+                  localStorage.setItem("maestro", JSON.stringify(data.maestro));
+                }
+              } catch {}
+              maestroIdRef.current = data.maestro.id;
+              setMaestroId(data.maestro.id);
+              cargarDatosConId(data.maestro.id);
+              const intervalo = setInterval(() => cargarDatosConId(data.maestro.id), 10000);
+              const timer = setInterval(() => setHora(new Date()), 1000);
+              return () => { clearInterval(intervalo); clearInterval(timer); };
+            }
+          }
+        } catch {}
+        // Si el token falló, intentar con sesión local abajo
+      }
+
+      // Caso 2: sin token en URL (o token inválido) → usar sesión local
+      const maestro = obtenerSesionMaestro();
+      if (!maestro) { window.location.href = "/login"; return; }
+
+      maestroIdRef.current = maestro.id;
+      setMaestroId(maestro.id);
+      cargarDatosConId(maestro.id);
+      const intervalo = setInterval(() => cargarDatosConId(maestro.id), 10000);
+      const timer = setInterval(() => setHora(new Date()), 1000);
+      return () => { clearInterval(intervalo); clearInterval(timer); };
+    };
+
+    iniciar();
   }, [id]); // eslint-disable-line
 
   // Al cambiar de día, recargar
   useEffect(() => {
     fechaRef.current = fecha;
-    if (!id) return;
+    if (!id || maestroIdRef.current === null) return;
     setCargandoDia(true);
-    cargarDatos().finally(() => setCargandoDia(false));
+    cargarDatosConId(maestroIdRef.current).finally(() => setCargandoDia(false));
   }, [fecha]); // eslint-disable-line
 
-  const cargarDatos = async () => {
-    const data = localStorage.getItem("maestro");
-    if (!data) return;
-    const maestro = JSON.parse(data);
+  const cargarDatosConId = async (mId: number) => {
     const diaSolicitado = fechaRef.current;
 
-    const res = await fetch(`/api/asistencia-vivo?grupoId=${id}&maestroId=${maestro.id}&fecha=${diaSolicitado}`);
+    const res = await fetch(`/api/asistencia-vivo?grupoId=${id}&maestroId=${mId}&fecha=${diaSolicitado}`);
     if (!res.ok) {
       if (res.status === 403) setNoAutorizado(true);
       return;
@@ -91,41 +155,39 @@ export default function AsistenciaPage() {
 
   const marcarEstatus = async (alumnoId: number, accion: string) => {
     if (marcando) return;
-    const data = localStorage.getItem("maestro");
-    if (!data) return;
-    const maestro = JSON.parse(data);
+    const mId = maestroIdRef.current;
+    if (!mId) return;
 
     setMarcando(alumnoId);
     const res = await fetch("/api/asistencia-manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: maestro.id, accion, fecha }),
+      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: mId, accion, fecha }),
     });
     if (!res.ok) {
       const r = await res.json().catch(() => ({}));
       alert(r.error || "No se pudo registrar");
     }
-    await cargarDatos();
+    await cargarDatosConId(mId);
     setMarcando(null);
   };
 
   const marcarBanio = async (alumnoId: number, accion: string) => {
     if (marcando) return;
-    const data = localStorage.getItem("maestro");
-    if (!data) return;
-    const maestro = JSON.parse(data);
+    const mId = maestroIdRef.current;
+    if (!mId) return;
 
     setMarcando(alumnoId);
     const res = await fetch("/api/banio-manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: maestro.id, accion }),
+      body: JSON.stringify({ alumnoId, grupoId: id, maestroId: mId, accion }),
     });
     if (!res.ok) {
       const data = await res.json();
       alert(data.error || "No se pudo registrar");
     }
-    await cargarDatos();
+    await cargarDatosConId(mId);
     setMarcando(null);
   };
 

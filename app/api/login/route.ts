@@ -1,7 +1,16 @@
-export const runtime = "edge";
+﻿export const runtime = "edge";
 
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { verifyPassword } from "../../../lib/passwordHash";
+
+function generarToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
 
 export async function POST(request: Request) {
   const { email, password } = await request.json();
@@ -26,7 +35,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Email o contrasena incorrectos" }, { status: 401 });
   }
 
+  // Generar session_token y guardarlo en BD
+  const session_token = generarToken();
+  await supabaseAdmin
+    .from("maestros")
+    .update({ session_token })
+    .eq("id", data.id);
+
   const { password: _omitido, ...maestroSinPassword } = data;
 
-  return Response.json({ maestro: maestroSinPassword });
+  return Response.json({ maestro: { ...maestroSinPassword, session_token } });
 }
